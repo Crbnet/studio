@@ -15,7 +15,7 @@ const IN_CHARGE_BONUS = 0.25;
 export function HistoryPage() {
     const [allShifts, setAllShifts] = useState<Shift[]>([]);
     const [stores, setStores] = useState<Store[]>([]);
-    const [payRate, setPayRate] = useState<number>(0);
+    const [payRate, setPayRate] = useState<number>(12.21);
 
     useEffect(() => {
         try {

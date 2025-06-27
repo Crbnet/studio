@@ -20,7 +20,7 @@ const IN_CHARGE_BONUS = 0.25;
 export function Dashboard() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
-  const [payRate, setPayRate] = useState<number>(0);
+  const [payRate, setPayRate] = useState<number>(12.21);
   const [lastPayday, setLastPayday] = useState<Date | null>(null);
   const [viewDate, setViewDate] = useState(new Date());
 
@@ -174,7 +174,7 @@ export function Dashboard() {
                   <Label htmlFor="payRate">Hourly Rate (£)</Label>
                   <div className="relative">
                      <PoundSterling className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="payRate" name="payRate" type="number" step="0.01" placeholder="e.g., 15.50" defaultValue={payRate > 0 ? payRate : ''} className="pl-8" required />
+                    <Input id="payRate" name="payRate" type="number" step="0.01" placeholder="e.g., 12.21" defaultValue={payRate > 0 ? payRate : ''} className="pl-8" required />
                   </div>
                 </div>
                 <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">Set Rate</Button>
