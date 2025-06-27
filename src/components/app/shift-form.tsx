@@ -96,6 +96,7 @@ export function ShiftForm({ onAddShift }: ShiftFormProps) {
                         mode="single"
                         selected={field.value}
                         onSelect={field.onChange}
+                        weekStartsOn={1}
                         disabled={(date) =>
                           date > new Date() || date < new Date("2000-01-01")
                         }
