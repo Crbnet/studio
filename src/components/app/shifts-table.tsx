@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, FileDown, Bot } from 'lucide-react';
+import { Trash2, FileDown, Bot, Star } from 'lucide-react';
 import { TaxEstimatorDialog } from '@/components/app/tax-estimator-dialog';
 import { useMemo } from 'react';
 
@@ -23,6 +23,8 @@ interface ShiftsTableProps {
   onDeleteShift: (id: string) => void;
   grossPay: number;
 }
+
+const IN_CHARGE_BONUS = 0.25;
 
 export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: ShiftsTableProps) {
   const calculateWorkHours = (shift: Shift) => {
@@ -39,11 +41,12 @@ export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: Shifts
   }, [shifts]);
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Start Time', 'End Time', 'Break (min)', 'Hours Worked', 'Gross Pay (£)'];
+    const headers = ['Date', 'Start Time', 'End Time', 'Break (min)', 'In Charge', 'Hours Worked', 'Gross Pay (£)'];
     const rows = shifts.map(shift => {
       const hours = calculateWorkHours(shift);
-      const pay = hours * payRate;
-      return [shift.date, shift.startTime, shift.endTime, shift.breakDuration, hours.toFixed(2), pay.toFixed(2)].join(',');
+      const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
+      const pay = hours * hourlyRate;
+      return [shift.date, shift.startTime, shift.endTime, shift.breakDuration, shift.inCharge ? 'Yes' : 'No', hours.toFixed(2), pay.toFixed(2)].join(',');
     });
 
     const csvContent = "data:text/csv;charset=utf-8," 
@@ -91,15 +94,21 @@ export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: Shifts
             <TableBody>
               {shifts.map(shift => {
                 const workHours = calculateWorkHours(shift);
-                const grossPay = workHours * payRate;
+                const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
+                const shiftPay = workHours * hourlyRate;
                 return (
                   <TableRow key={shift.id}>
-                    <TableCell>{new Date(shift.date).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 font-medium">
+                        {new Date(shift.date).toLocaleDateString()}
+                        {shift.inCharge && <Star className="h-4 w-4 text-amber-400 fill-amber-400" title="In Charge Shift (+£0.25/hr)" />}
+                      </div>
+                    </TableCell>
                     <TableCell className="hidden sm:table-cell">{shift.startTime}</TableCell>
                     <TableCell className="hidden sm:table-cell">{shift.endTime}</TableCell>
                     <TableCell className="hidden md:table-cell">{shift.breakDuration} min</TableCell>
                     <TableCell>{workHours.toFixed(2)}</TableCell>
-                    <TableCell>£{grossPay.toFixed(2)}</TableCell>
+                    <TableCell>£{shiftPay.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => onDeleteShift(shift.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />

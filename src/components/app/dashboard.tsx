@@ -15,6 +15,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
+const IN_CHARGE_BONUS = 0.25;
+
 export function Dashboard() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [payRate, setPayRate] = useState<number>(0);
@@ -99,7 +101,8 @@ export function Dashboard() {
       if(durationHours < 0) durationHours += 24; // Handles overnight shifts
       const breakHours = shift.breakDuration / 60;
       const workHours = durationHours - breakHours;
-      return total + (workHours * payRate);
+      const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
+      return total + (workHours * hourlyRate);
     }, 0);
   }, [shifts, payRate]);
 

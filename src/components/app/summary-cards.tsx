@@ -15,6 +15,8 @@ interface SummaryCardsProps {
 
 type Period = 'week' | 'month' | 'all';
 
+const IN_CHARGE_BONUS = 0.25;
+
 export function SummaryCards({ shifts, payRate }: SummaryCardsProps) {
     const [period, setPeriod] = useState<Period>('all');
 
@@ -40,8 +42,9 @@ export function SummaryCards({ shifts, payRate }: SummaryCardsProps) {
             if(durationHours < 0) durationHours += 24; // Handles overnight shifts
             const breakHours = shift.breakDuration / 60;
             const workHours = durationHours - breakHours;
+            const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
             totalHours += workHours;
-            grossPay += workHours * payRate;
+            grossPay += workHours * hourlyRate;
         });
         
         return { totalHours, grossPay };

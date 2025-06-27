@@ -4,4 +4,5 @@ export interface Shift {
   startTime: string; // HH:mm
   endTime: string; // HH:mm
   breakDuration: number; // in minutes
+  inCharge?: boolean;
 }

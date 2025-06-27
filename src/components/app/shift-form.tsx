@@ -8,18 +8,20 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription as CardDesc } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, Clock, Coffee, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
 
 const shiftFormSchema = z.object({
   date: z.date({
@@ -28,6 +30,7 @@ const shiftFormSchema = z.object({
   startTime: z.string().min(1, "Start time is required."),
   endTime: z.string().min(1, "End time is required."),
   breakDuration: z.coerce.number().min(0, "Break must be positive.").default(0),
+  inCharge: z.boolean().default(false),
 });
 
 type ShiftFormValues = z.infer<typeof shiftFormSchema>;
@@ -44,6 +47,7 @@ export function ShiftForm({ onAddShift }: ShiftFormProps) {
       startTime: '',
       endTime: '',
       breakDuration: 0,
+      inCharge: false,
     }
   });
 
@@ -52,16 +56,17 @@ export function ShiftForm({ onAddShift }: ShiftFormProps) {
         date: data.date.toISOString().split('T')[0],
         startTime: data.startTime,
         endTime: data.endTime,
-        breakDuration: data.breakDuration
+        breakDuration: data.breakDuration,
+        inCharge: data.inCharge
     });
-    form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0 });
+    form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0, inCharge: false });
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="font-headline">Log a New Shift</CardTitle>
-        <CardDescription>Enter the details for your work shift.</CardDescription>
+        <CardDesc>Enter the details for your work shift.</CardDesc>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -155,6 +160,28 @@ export function ShiftForm({ onAddShift }: ShiftFormProps) {
                     </FormControl>
                   </div>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="inCharge"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>
+                      In Charge Shift
+                    </FormLabel>
+                    <FormDescription>
+                      Adds a £0.25/hr bonus.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />
