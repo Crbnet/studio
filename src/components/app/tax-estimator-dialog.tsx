@@ -54,10 +54,23 @@ export function TaxEstimatorDialog({ grossPay, payRate, totalHours }: TaxEstimat
     resolver: zodResolver(taxEstimatorSchema),
     defaultValues: {
       income: estimatedAnnualIncome > 0 ? parseFloat(estimatedAnnualIncome.toFixed(2)) : undefined,
-      location: '',
-      commonDeductions: 'standard deduction',
+      location: 'UK',
+      commonDeductions: 'standard tax-free Personal Allowance',
     },
   });
+
+  const onOpenChange = (open: boolean) => {
+    if (open) {
+      form.reset({
+        income: estimatedAnnualIncome > 0 ? parseFloat(estimatedAnnualIncome.toFixed(2)) : undefined,
+        location: 'UK',
+        commonDeductions: 'standard tax-free Personal Allowance',
+      });
+      setResult(null);
+      setError(null);
+    }
+    setIsOpen(open);
+  }
   
   async function onSubmit(data: TaxEstimatorValues) {
     setIsLoading(true);
@@ -75,7 +88,7 @@ export function TaxEstimatorDialog({ grossPay, payRate, totalHours }: TaxEstimat
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
             <Bot className="mr-2 h-4 w-4" />
@@ -98,9 +111,9 @@ export function TaxEstimatorDialog({ grossPay, payRate, totalHours }: TaxEstimat
                 name="income"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Estimated Annual Income ($)</FormLabel>
+                    <FormLabel>Estimated Annual Income (£)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="100" placeholder="e.g., 50000" {...field} />
+                      <Input type="number" step="100" placeholder="e.g., 30000" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -111,9 +124,9 @@ export function TaxEstimatorDialog({ grossPay, payRate, totalHours }: TaxEstimat
                 name="location"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Location (State)</FormLabel>
+                    <FormLabel>Location (Country)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., California" {...field} />
+                      <Input placeholder="e.g., UK" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -126,7 +139,7 @@ export function TaxEstimatorDialog({ grossPay, payRate, totalHours }: TaxEstimat
                   <FormItem>
                     <FormLabel>Common Deductions</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., student loan interest" {...field} />
+                      <Input placeholder="e.g., pension contributions" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -156,7 +169,7 @@ export function TaxEstimatorDialog({ grossPay, payRate, totalHours }: TaxEstimat
                     </AlertDescription>
                 </Alert>
                 <DialogFooter>
-                     <Button variant="outline" onClick={() => { setResult(null); form.reset() }}>
+                     <Button variant="outline" onClick={() => { setResult(null); }}>
                         Estimate Again
                     </Button>
                 </DialogFooter>

@@ -13,14 +13,14 @@ import {z} from 'genkit';
 const EstimateTaxDeductionsInputSchema = z.object({
   income: z
     .number()
-    .describe('Your annual income in USD.'),
+    .describe('Your annual income in GBP.'),
   location: z
     .string()
-    .describe('Your location (e.g., city, state) for tax purposes.'),
+    .describe('Your location (e.g., country) for tax purposes.'),
   commonDeductions: z
     .string()
     .describe(
-      'A comma-separated list of common tax deductions you expect to claim (e.g., student loan interest, IRA contributions).' // Corrected typo here
+      'A comma-separated list of common tax deductions you expect to claim (e.g., pension contributions, charitable donations).'
     ),
 });
 export type EstimateTaxDeductionsInput = z.infer<
@@ -53,7 +53,7 @@ const prompt = ai.definePrompt({
   name: 'estimateTaxDeductionsPrompt',
   input: {schema: EstimateTaxDeductionsInputSchema},
   output: {schema: EstimateTaxDeductionsOutputSchema},
-  prompt: `You are a tax estimation assistant. You will estimate the tax deductions for the user based on their income, location, and common deductions.
+  prompt: `You are a tax estimation assistant. You will estimate the tax deductions for the user based on their income, location, and common deductions. Assume the currency is in Great British Pounds (GBP) if the location is in the UK.
 
   Income: {{{income}}}
   Location: {{{location}}}

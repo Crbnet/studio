@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import type { Shift } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Clock, TrendingUp, BarChart } from 'lucide-react';
+import { PoundSterling, Clock, TrendingUp, BarChart } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from 'react';
 import { subDays, startOfWeek, startOfMonth, isWithinInterval } from 'date-fns';
@@ -53,8 +53,8 @@ export function SummaryCards({ shifts, payRate }: SummaryCardsProps) {
 
   const summaryData = [
     { title: 'Total Hours', value: totalHours.toFixed(2), icon: Clock, change: 'h' },
-    { title: 'Gross Pay', value: `$${grossPay.toFixed(2)}`, icon: DollarSign, change: '' },
-    { title: 'Avg Pay/Shift', value: `$${avgPayPerShift.toFixed(2)}`, icon: TrendingUp, change: '' },
+    { title: 'Gross Pay', value: `£${grossPay.toFixed(2)}`, icon: PoundSterling, change: '' },
+    { title: 'Avg Pay/Shift', value: `£${avgPayPerShift.toFixed(2)}`, icon: TrendingUp, change: '' },
     { title: 'Avg Hours/Shift', value: avgHoursPerShift.toFixed(2), icon: BarChart, change: 'h' },
   ];
   

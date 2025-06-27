@@ -39,7 +39,7 @@ export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: Shifts
   }, [shifts]);
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Start Time', 'End Time', 'Break (min)', 'Hours Worked', 'Gross Pay ($)'];
+    const headers = ['Date', 'Start Time', 'End Time', 'Break (min)', 'Hours Worked', 'Gross Pay (£)'];
     const rows = shifts.map(shift => {
       const hours = calculateWorkHours(shift);
       const pay = hours * payRate;
@@ -99,7 +99,7 @@ export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: Shifts
                     <TableCell className="hidden sm:table-cell">{shift.endTime}</TableCell>
                     <TableCell className="hidden md:table-cell">{shift.breakDuration} min</TableCell>
                     <TableCell>{workHours.toFixed(2)}</TableCell>
-                    <TableCell>${grossPay.toFixed(2)}</TableCell>
+                    <TableCell>£{grossPay.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => onDeleteShift(shift.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -115,7 +115,7 @@ export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: Shifts
                     <TableCell className="md:hidden" colSpan={1}>Total</TableCell>
                     <TableCell className="hidden sm:table-cell"></TableCell>
                     <TableCell>{totalHours.toFixed(2)}</TableCell>
-                    <TableCell>${grossPay.toFixed(2)}</TableCell>
+                    <TableCell>£{grossPay.toFixed(2)}</TableCell>
                     <TableCell></TableCell>
                 </TableRow>
             </TableFooter>

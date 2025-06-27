@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { DollarSign } from 'lucide-react';
+import { PoundSterling } from 'lucide-react';
 
 export function Dashboard() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -79,9 +79,9 @@ export function Dashboard() {
             <CardContent>
               <form onSubmit={handleSetPayRate} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="payRate">Hourly Rate ($)</Label>
+                  <Label htmlFor="payRate">Hourly Rate (£)</Label>
                   <div className="relative">
-                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                     <PoundSterling className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input id="payRate" name="payRate" type="number" step="0.01" placeholder="e.g., 15.50" defaultValue={payRate > 0 ? payRate : ''} className="pl-8" required />
                   </div>
                 </div>
