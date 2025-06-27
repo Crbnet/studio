@@ -1,3 +1,18 @@
+import { Dashboard } from '@/components/app/dashboard';
+import { Header } from '@/components/app/header';
+
 export default function Home() {
-  return <></>;
+  return (
+    <div className="flex flex-col min-h-screen bg-background">
+      <Header />
+      <main className="flex-grow container mx-auto p-4 md:p-6 lg:p-8">
+        <Dashboard />
+      </main>
+      <footer className="py-4">
+        <div className="container mx-auto text-center text-sm text-muted-foreground">
+          <p>WageWise - Your Personal Shift & Pay Manager</p>
+        </div>
+      </footer>
+    </div>
+  );
 }

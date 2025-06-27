@@ -1,0 +1,127 @@
+"use client";
+
+import type { Shift } from '@/types';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableCaption,
+  TableFooter,
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Trash2, FileDown, Bot } from 'lucide-react';
+import { TaxEstimatorDialog } from '@/components/app/tax-estimator-dialog';
+import { useMemo } from 'react';
+
+interface ShiftsTableProps {
+  shifts: Shift[];
+  payRate: number;
+  onDeleteShift: (id: string) => void;
+  grossPay: number;
+}
+
+export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: ShiftsTableProps) {
+  const calculateWorkHours = (shift: Shift) => {
+    const start = new Date(`${shift.date}T${shift.startTime}`);
+    const end = new Date(`${shift.date}T${shift.endTime}`);
+    let durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    if(durationHours < 0) durationHours += 24; // Overnight
+    const breakHours = shift.breakDuration / 60;
+    return durationHours - breakHours;
+  };
+  
+  const totalHours = useMemo(() => {
+    return shifts.reduce((total, shift) => total + calculateWorkHours(shift), 0);
+  }, [shifts]);
+
+  const exportToCSV = () => {
+    const headers = ['Date', 'Start Time', 'End Time', 'Break (min)', 'Hours Worked', 'Gross Pay ($)'];
+    const rows = shifts.map(shift => {
+      const hours = calculateWorkHours(shift);
+      const pay = hours * payRate;
+      return [shift.date, shift.startTime, shift.endTime, shift.breakDuration, hours.toFixed(2), pay.toFixed(2)].join(',');
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(','), ...rows].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "shifts.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="font-headline">Logged Shifts</CardTitle>
+          <CardDescription>Your recorded work shifts.</CardDescription>
+        </div>
+        <div className="flex items-center gap-2">
+            <TaxEstimatorDialog grossPay={grossPay} payRate={payRate} totalHours={totalHours} />
+            <Button variant="outline" size="sm" onClick={exportToCSV} disabled={shifts.length === 0}>
+                <FileDown className="mr-2 h-4 w-4" />
+                Export CSV
+            </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="border rounded-md">
+          <Table>
+            {shifts.length === 0 && <TableCaption>No shifts logged yet.</TableCaption>}
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead className="hidden sm:table-cell">Start</TableHead>
+                <TableHead className="hidden sm:table-cell">End</TableHead>
+                <TableHead className="hidden md:table-cell">Break</TableHead>
+                <TableHead>Hours</TableHead>
+                <TableHead>Pay</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {shifts.map(shift => {
+                const workHours = calculateWorkHours(shift);
+                const grossPay = workHours * payRate;
+                return (
+                  <TableRow key={shift.id}>
+                    <TableCell>{new Date(shift.date).toLocaleDateString()}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{shift.startTime}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{shift.endTime}</TableCell>
+                    <TableCell className="hidden md:table-cell">{shift.breakDuration} min</TableCell>
+                    <TableCell>{workHours.toFixed(2)}</TableCell>
+                    <TableCell>${grossPay.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => onDeleteShift(shift.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+            <TableFooter>
+                <TableRow>
+                    <TableCell colSpan={3} className="hidden md:table-cell">Total</TableCell>
+                    <TableCell className="md:hidden" colSpan={1}>Total</TableCell>
+                    <TableCell className="hidden sm:table-cell"></TableCell>
+                    <TableCell>{totalHours.toFixed(2)}</TableCell>
+                    <TableCell>${grossPay.toFixed(2)}</TableCell>
+                    <TableCell></TableCell>
+                </TableRow>
+            </TableFooter>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
