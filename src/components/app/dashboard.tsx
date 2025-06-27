@@ -9,10 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, CalendarDays, PoundSterling } from 'lucide-react';
+import { Calendar as CalendarIcon, CalendarDays, PoundSterling, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, isThisWeek } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 const IN_CHARGE_BONUS = 0.25;
@@ -21,6 +21,7 @@ export function Dashboard() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [payRate, setPayRate] = useState<number>(0);
   const [lastPayday, setLastPayday] = useState<Date | null>(null);
+  const [viewDate, setViewDate] = useState(new Date());
 
   useEffect(() => {
     try {
@@ -76,6 +77,34 @@ export function Dashboard() {
       setLastPayday(date);
     }
   };
+  
+  const weekStartsOn = 1; // Monday
+  const weekStart = useMemo(() => startOfWeek(viewDate, { weekStartsOn }), [viewDate]);
+  const weekEnd = useMemo(() => endOfWeek(viewDate, { weekStartsOn }), [viewDate]);
+
+  const visibleShifts = useMemo(() => {
+    return shifts.filter(shift => {
+      const shiftDate = new Date(shift.date);
+      shiftDate.setHours(12); // avoid timezone issues
+      return isWithinInterval(shiftDate, { start: weekStart, end: weekEnd });
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [shifts, weekStart, weekEnd]);
+
+  const isLocked = !isThisWeek(viewDate, { weekStartsOn });
+  
+  const grossPayForWeek = useMemo(() => {
+    return visibleShifts.reduce((total, shift) => {
+      const start = new Date(`${shift.date}T${shift.startTime}`);
+      const end = new Date(`${shift.date}T${shift.endTime}`);
+      let durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      if(durationHours < 0) durationHours += 24; // Handles overnight shifts
+      const breakHours = shift.breakDuration / 60;
+      const workHours = durationHours - breakHours;
+      const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
+      return total + (workHours * hourlyRate);
+    }, 0);
+  }, [visibleShifts, payRate]);
+
 
   const nextPayday = useMemo(() => {
     if (!lastPayday) return null;
@@ -93,22 +122,26 @@ export function Dashboard() {
     return nextPaydayDate;
   }, [lastPayday]);
 
-  const grossPay = useMemo(() => {
-    return shifts.reduce((total, shift) => {
-      const start = new Date(`${shift.date}T${shift.startTime}`);
-      const end = new Date(`${shift.date}T${shift.endTime}`);
-      let durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-      if(durationHours < 0) durationHours += 24; // Handles overnight shifts
-      const breakHours = shift.breakDuration / 60;
-      const workHours = durationHours - breakHours;
-      const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
-      return total + (workHours * hourlyRate);
-    }, 0);
-  }, [shifts, payRate]);
-
   return (
     <div className="space-y-6">
-      <SummaryCards shifts={shifts} payRate={payRate} />
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold font-headline">Weekly View</h2>
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" onClick={() => setViewDate(subDays(viewDate, 7))}>
+                    <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" onClick={() => setViewDate(new Date())}>Today</Button>
+                <Button variant="outline" size="icon" onClick={() => setViewDate(addDays(viewDate, 7))}>
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+        <p className="text-center text-lg font-medium text-muted-foreground">
+            {format(weekStart, 'PPP')} &mdash; {format(weekEnd, 'PPP')}
+        </p>
+        <SummaryCards shifts={visibleShifts} payRate={payRate} />
+      </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">
@@ -177,11 +210,11 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <ShiftForm onAddShift={handleAddShift} />
+          <ShiftForm onAddShift={handleAddShift} isLocked={isLocked} viewDate={viewDate} />
         </div>
 
         <div className="lg:col-span-2">
-          <ShiftsTable shifts={shifts} payRate={payRate} onDeleteShift={handleDeleteShift} grossPay={grossPay} />
+          <ShiftsTable shifts={visibleShifts} allShifts={shifts} payRate={payRate} onDeleteShift={handleDeleteShift} grossPay={grossPayForWeek} isLocked={isLocked} />
         </div>
       </div>
     </div>

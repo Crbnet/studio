@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -18,10 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription as CardDesc } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { CalendarIcon, Clock, Coffee, PlusCircle } from 'lucide-react';
+import { CalendarIcon, Clock, Coffee, PlusCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
+import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 
 const shiftFormSchema = z.object({
   date: z.date({
@@ -37,19 +39,31 @@ type ShiftFormValues = z.infer<typeof shiftFormSchema>;
 
 interface ShiftFormProps {
   onAddShift: (shift: Omit<Shift, 'id'>) => void;
+  isLocked?: boolean;
+  viewDate: Date;
 }
 
-export function ShiftForm({ onAddShift }: ShiftFormProps) {
+export function ShiftForm({ onAddShift, isLocked, viewDate }: ShiftFormProps) {
   const form = useForm<ShiftFormValues>({
     resolver: zodResolver(shiftFormSchema),
     defaultValues: {
-      date: new Date(),
+      date: viewDate,
       startTime: '',
       endTime: '',
       breakDuration: 0,
       inCharge: false,
     }
   });
+
+  useEffect(() => {
+    form.reset({
+      date: viewDate,
+      startTime: '',
+      endTime: '',
+      breakDuration: 0,
+      inCharge: false,
+    });
+  }, [viewDate, form]);
 
   function onSubmit(data: ShiftFormValues) {
     onAddShift({
@@ -62,6 +76,10 @@ export function ShiftForm({ onAddShift }: ShiftFormProps) {
     form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0, inCharge: false });
   }
 
+  const weekStartsOn = 1;
+  const weekStart = startOfWeek(viewDate, { weekStartsOn });
+  const weekEnd = endOfWeek(viewDate, { weekStartsOn });
+
   return (
     <Card>
       <CardHeader>
@@ -69,8 +87,19 @@ export function ShiftForm({ onAddShift }: ShiftFormProps) {
         <CardDesc>Enter the details for your work shift.</CardDesc>
       </CardHeader>
       <CardContent>
+        {isLocked && (
+          <Alert variant="default" className="mb-4 bg-amber-50 border-amber-200 text-amber-800">
+            <AlertCircle className="h-4 w-4 !text-amber-800" />
+            <AlertTitle className="font-semibold">Editing Locked</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              You can only add shifts to the current week. Navigate to "Today" to add a new shift.
+            </AlertDescription>
+          </Alert>
+        )}
+        <fieldset disabled={isLocked} className="space-y-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="space-y-6">
             <FormField
               control={form.control}
               name="date"
@@ -103,8 +132,9 @@ export function ShiftForm({ onAddShift }: ShiftFormProps) {
                         onSelect={field.onChange}
                         weekStartsOn={1}
                         disabled={(date) =>
-                          date > new Date() || date < new Date("2000-01-01")
+                          date > weekEnd || date < weekStart
                         }
+                        defaultMonth={viewDate}
                         initialFocus
                       />
                     </PopoverContent>
@@ -189,8 +219,10 @@ export function ShiftForm({ onAddShift }: ShiftFormProps) {
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Shift
             </Button>
+            </div>
           </form>
         </Form>
+        </fieldset>
       </CardContent>
     </Card>
   );

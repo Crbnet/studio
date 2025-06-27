@@ -13,20 +13,23 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, FileDown, Bot, Star } from 'lucide-react';
+import { Trash2, FileDown, Bot, Star, AlertCircle } from 'lucide-react';
 import { TaxEstimatorDialog } from '@/components/app/tax-estimator-dialog';
 import { useMemo } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 interface ShiftsTableProps {
   shifts: Shift[];
+  allShifts: Shift[];
   payRate: number;
   onDeleteShift: (id: string) => void;
   grossPay: number;
+  isLocked?: boolean;
 }
 
 const IN_CHARGE_BONUS = 0.25;
 
-export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: ShiftsTableProps) {
+export function ShiftsTable({ shifts, allShifts, payRate, onDeleteShift, grossPay, isLocked }: ShiftsTableProps) {
   const calculateWorkHours = (shift: Shift) => {
     const start = new Date(`${shift.date}T${shift.startTime}`);
     const end = new Date(`${shift.date}T${shift.endTime}`);
@@ -42,20 +45,22 @@ export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: Shifts
 
   const exportToCSV = () => {
     const headers = ['Date', 'Start Time', 'End Time', 'Break (min)', 'In Charge', 'Hours Worked', 'Gross Pay (£)'];
-    const rows = shifts.map(shift => {
-      const hours = calculateWorkHours(shift);
-      const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
-      const pay = hours * hourlyRate;
-      return [shift.date, shift.startTime, shift.endTime, shift.breakDuration, shift.inCharge ? 'Yes' : 'No', hours.toFixed(2), pay.toFixed(2)].join(',');
+    const csvRows = allShifts
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .map(shift => {
+        const hours = calculateWorkHours(shift);
+        const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
+        const pay = hours * hourlyRate;
+        return [shift.date, shift.startTime, shift.endTime, shift.breakDuration, shift.inCharge ? 'Yes' : 'No', hours.toFixed(2), pay.toFixed(2)].join(',');
     });
 
     const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...rows].join("\n");
+      + [headers.join(','), ...csvRows].join("\n");
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "shifts.csv");
+    link.setAttribute("download", "all_shifts.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -66,20 +71,29 @@ export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: Shifts
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="font-headline">Logged Shifts</CardTitle>
-          <CardDescription>Your recorded work shifts.</CardDescription>
+          <CardDescription>Your work shifts for the selected week.</CardDescription>
         </div>
         <div className="flex items-center gap-2">
             <TaxEstimatorDialog grossPay={grossPay} payRate={payRate} totalHours={totalHours} />
-            <Button variant="outline" size="sm" onClick={exportToCSV} disabled={shifts.length === 0}>
+            <Button variant="outline" size="sm" onClick={exportToCSV} disabled={allShifts.length === 0}>
                 <FileDown className="mr-2 h-4 w-4" />
-                Export CSV
+                Export All
             </Button>
         </div>
       </CardHeader>
       <CardContent>
+        {isLocked && (
+            <Alert variant="default" className="mb-4 bg-amber-50 border-amber-200 text-amber-800">
+                <AlertCircle className="h-4 w-4 !text-amber-800" />
+                <AlertTitle className="font-semibold">Week Locked</AlertTitle>
+                <AlertDescription className="text-amber-700">
+                You cannot delete shifts from past weeks.
+                </AlertDescription>
+            </Alert>
+        )}
         <div className="border rounded-md">
           <Table>
-            {shifts.length === 0 && <TableCaption>No shifts logged yet.</TableCaption>}
+            {shifts.length === 0 && <TableCaption>No shifts logged for this week.</TableCaption>}
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
@@ -100,7 +114,7 @@ export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: Shifts
                   <TableRow key={shift.id}>
                     <TableCell>
                       <div className="flex items-center gap-2 font-medium">
-                        {new Date(shift.date).toLocaleDateString()}
+                        {new Date(shift.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
                         {shift.inCharge && <Star className="h-4 w-4 text-amber-400 fill-amber-400" title="In Charge Shift (+£0.25/hr)" />}
                       </div>
                     </TableCell>
@@ -110,7 +124,7 @@ export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: Shifts
                     <TableCell>{workHours.toFixed(2)}</TableCell>
                     <TableCell>£{shiftPay.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => onDeleteShift(shift.id)}>
+                      <Button variant="ghost" size="icon" onClick={() => onDeleteShift(shift.id)} disabled={isLocked}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </TableCell>
@@ -118,16 +132,18 @@ export function ShiftsTable({ shifts, payRate, onDeleteShift, grossPay }: Shifts
                 );
               })}
             </TableBody>
-            <TableFooter>
-                <TableRow>
-                    <TableCell colSpan={3} className="hidden md:table-cell">Total</TableCell>
-                    <TableCell className="md:hidden" colSpan={1}>Total</TableCell>
-                    <TableCell className="hidden sm:table-cell"></TableCell>
-                    <TableCell>{totalHours.toFixed(2)}</TableCell>
-                    <TableCell>£{grossPay.toFixed(2)}</TableCell>
-                    <TableCell></TableCell>
-                </TableRow>
-            </TableFooter>
+            {shifts.length > 0 && (
+                <TableFooter>
+                    <TableRow>
+                        <TableCell colSpan={3} className="hidden md:table-cell">Total</TableCell>
+                        <TableCell className="md:hidden" colSpan={1}>Total</TableCell>
+                        <TableCell className="hidden sm:table-cell"></TableCell>
+                        <TableCell>{totalHours.toFixed(2)}</TableCell>
+                        <TableCell>£{grossPay.toFixed(2)}</TableCell>
+                        <TableCell></TableCell>
+                    </TableRow>
+                </TableFooter>
+            )}
           </Table>
         </div>
       </CardContent>
