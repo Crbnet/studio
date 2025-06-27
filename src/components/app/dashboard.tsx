@@ -9,21 +9,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { PoundSterling } from 'lucide-react';
+import { Calendar as CalendarIcon, CalendarDays, PoundSterling } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export function Dashboard() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [payRate, setPayRate] = useState<number>(0);
+  const [lastPayday, setLastPayday] = useState<Date | null>(null);
 
   useEffect(() => {
     try {
       const storedShifts = localStorage.getItem('shifts');
       const storedPayRate = localStorage.getItem('payRate');
+      const storedLastPayday = localStorage.getItem('lastPayday');
       if (storedShifts) {
         setShifts(JSON.parse(storedShifts));
       }
       if (storedPayRate) {
         setPayRate(JSON.parse(storedPayRate));
+      }
+      if (storedLastPayday) {
+        setLastPayday(new Date(JSON.parse(storedLastPayday)));
       }
     } catch (error) {
       console.error("Failed to parse from localStorage", error);
@@ -37,6 +46,12 @@ export function Dashboard() {
   useEffect(() => {
     localStorage.setItem('payRate', JSON.stringify(payRate));
   }, [payRate]);
+
+  useEffect(() => {
+    if (lastPayday) {
+      localStorage.setItem('lastPayday', JSON.stringify(lastPayday));
+    }
+  }, [lastPayday]);
 
   const handleAddShift = (newShift: Omit<Shift, 'id'>) => {
     setShifts(prev => [...prev, { ...newShift, id: crypto.randomUUID() }].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
@@ -52,7 +67,29 @@ export function Dashboard() {
     if (!isNaN(newRate)) {
       setPayRate(newRate);
     }
-  }
+  };
+
+  const handleSetLastPayday = (date: Date | undefined) => {
+    if (date) {
+      setLastPayday(date);
+    }
+  };
+
+  const nextPayday = useMemo(() => {
+    if (!lastPayday) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let nextPaydayDate = new Date(lastPayday);
+    nextPaydayDate.setHours(0, 0, 0, 0);
+    
+    while (nextPaydayDate <= today) {
+        nextPaydayDate.setDate(nextPaydayDate.getDate() + 28);
+    }
+    
+    return nextPaydayDate;
+  }, [lastPayday]);
 
   const grossPay = useMemo(() => {
     return shifts.reduce((total, shift) => {
@@ -89,6 +126,54 @@ export function Dashboard() {
               </form>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">Pay Cycle</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div>
+                    <Label>Last Payday (4-week cycle)</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-full justify-start text-left font-normal mt-2",
+                                    !lastPayday && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {lastPayday ? format(lastPayday, "PPP") : <span>Pick a date</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={lastPayday}
+                                onSelect={handleSetLastPayday}
+                                disabled={(date) => date > new Date() || date < new Date("2000-01-01")}
+                                weekStartsOn={1}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+                {nextPayday && (
+                    <div className="space-y-2 rounded-md bg-accent/20 p-4">
+                        <p className="text-sm font-medium text-accent-foreground/80">Next Estimated Payday</p>
+                        <p className="text-xl font-bold font-headline text-accent-foreground flex items-center gap-2">
+                            <CalendarDays className="h-5 w-5" />
+                            {format(nextPayday, "PPP")}
+                        </p>
+                    </div>
+                )}
+                {!lastPayday && (
+                     <p className="text-sm text-muted-foreground pt-2">Set your last payday to estimate the next one.</p>
+                )}
+            </CardContent>
+          </Card>
+
           <ShiftForm onAddShift={handleAddShift} />
         </div>
 
