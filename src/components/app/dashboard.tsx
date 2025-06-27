@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Shift } from '@/types';
+import type { Shift, Store } from '@/types';
 import { ShiftForm } from '@/components/app/shift-form';
 import { ShiftsTable } from '@/components/app/shifts-table';
 import { SummaryCards } from '@/components/app/summary-cards';
@@ -19,6 +19,7 @@ const IN_CHARGE_BONUS = 0.25;
 
 export function Dashboard() {
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [payRate, setPayRate] = useState<number>(0);
   const [lastPayday, setLastPayday] = useState<Date | null>(null);
   const [viewDate, setViewDate] = useState(new Date());
@@ -28,6 +29,7 @@ export function Dashboard() {
       const storedShifts = localStorage.getItem('shifts');
       const storedPayRate = localStorage.getItem('payRate');
       const storedLastPayday = localStorage.getItem('lastPayday');
+      const storedStores = localStorage.getItem('stores');
       if (storedShifts) {
         setShifts(JSON.parse(storedShifts));
       }
@@ -37,6 +39,9 @@ export function Dashboard() {
       if (storedLastPayday) {
         setLastPayday(new Date(JSON.parse(storedLastPayday)));
       }
+      if (storedStores) {
+        setStores(JSON.parse(storedStores));
+      }
     } catch (error) {
       console.error("Failed to parse from localStorage", error);
     }
@@ -45,6 +50,10 @@ export function Dashboard() {
   useEffect(() => {
     localStorage.setItem('shifts', JSON.stringify(shifts));
   }, [shifts]);
+
+  useEffect(() => {
+    localStorage.setItem('stores', JSON.stringify(stores));
+  }, [stores]);
 
   useEffect(() => {
     localStorage.setItem('payRate', JSON.stringify(payRate));
@@ -64,6 +73,16 @@ export function Dashboard() {
     setShifts(prev => prev.filter(shift => shift.id !== id));
   };
   
+  const handleAddStore = (newStore: Omit<Store, 'id'>) => {
+    setStores(prev => [...prev, { ...newStore, id: crypto.randomUUID() }].sort((a,b) => a.name.localeCompare(b.name)));
+  };
+
+  const handleDeleteStore = (id: string) => {
+    setStores(prev => prev.filter(store => store.id !== id));
+    // Also remove this storeId from any shifts that have it
+    setShifts(prev => prev.map(shift => shift.storeId === id ? { ...shift, storeId: undefined } : shift));
+  };
+
   const handleSetPayRate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const newRate = parseFloat(new FormData(e.currentTarget).get('payRate') as string);
@@ -210,11 +229,26 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <ShiftForm onAddShift={handleAddShift} isLocked={isLocked} viewDate={viewDate} />
+          <ShiftForm
+            onAddShift={handleAddShift}
+            isLocked={isLocked}
+            viewDate={viewDate}
+            stores={stores}
+            onAddStore={handleAddStore}
+            onDeleteStore={handleDeleteStore}
+          />
         </div>
 
         <div className="lg:col-span-2">
-          <ShiftsTable shifts={visibleShifts} allShifts={shifts} payRate={payRate} onDeleteShift={handleDeleteShift} grossPay={grossPayForWeek} isLocked={isLocked} />
+          <ShiftsTable 
+            shifts={visibleShifts} 
+            allShifts={shifts} 
+            stores={stores} 
+            payRate={payRate} 
+            onDeleteShift={handleDeleteShift} 
+            grossPay={grossPayForWeek} 
+            isLocked={isLocked} 
+          />
         </div>
       </div>
     </div>

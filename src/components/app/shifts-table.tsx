@@ -1,6 +1,6 @@
 "use client";
 
-import type { Shift } from '@/types';
+import type { Shift, Store } from '@/types';
 import {
   Table,
   TableBody,
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, FileDown, Bot, Star, AlertCircle } from 'lucide-react';
+import { Trash2, FileDown, Bot, Star, AlertCircle, Store as StoreIcon } from 'lucide-react';
 import { TaxEstimatorDialog } from '@/components/app/tax-estimator-dialog';
 import { useMemo } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
@@ -21,6 +21,7 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 interface ShiftsTableProps {
   shifts: Shift[];
   allShifts: Shift[];
+  stores: Store[];
   payRate: number;
   onDeleteShift: (id: string) => void;
   grossPay: number;
@@ -29,7 +30,10 @@ interface ShiftsTableProps {
 
 const IN_CHARGE_BONUS = 0.25;
 
-export function ShiftsTable({ shifts, allShifts, payRate, onDeleteShift, grossPay, isLocked }: ShiftsTableProps) {
+export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift, grossPay, isLocked }: ShiftsTableProps) {
+  
+  const getStore = (storeId?: string) => stores.find(s => s.id === storeId);
+  
   const calculateWorkHours = (shift: Shift) => {
     const start = new Date(`${shift.date}T${shift.startTime}`);
     const end = new Date(`${shift.date}T${shift.endTime}`);
@@ -44,14 +48,25 @@ export function ShiftsTable({ shifts, allShifts, payRate, onDeleteShift, grossPa
   }, [shifts]);
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Start Time', 'End Time', 'Break (min)', 'In Charge', 'Hours Worked', 'Gross Pay (£)'];
+    const headers = ['Date', 'Store Name', 'Store Number', 'Start Time', 'End Time', 'Break (min)', 'In Charge', 'Hours Worked', 'Gross Pay (£)'];
     const csvRows = allShifts
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(shift => {
         const hours = calculateWorkHours(shift);
         const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
         const pay = hours * hourlyRate;
-        return [shift.date, shift.startTime, shift.endTime, shift.breakDuration, shift.inCharge ? 'Yes' : 'No', hours.toFixed(2), pay.toFixed(2)].join(',');
+        const store = getStore(shift.storeId);
+        return [
+          shift.date,
+          store?.name || 'N/A',
+          store?.number || 'N/A',
+          shift.startTime,
+          shift.endTime,
+          shift.breakDuration,
+          shift.inCharge ? 'Yes' : 'No',
+          hours.toFixed(2),
+          pay.toFixed(2)
+        ].join(',');
     });
 
     const csvContent = "data:text/csv;charset=utf-8," 
@@ -97,6 +112,7 @@ export function ShiftsTable({ shifts, allShifts, payRate, onDeleteShift, grossPa
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
+                <TableHead className="hidden sm:table-cell">Store</TableHead>
                 <TableHead className="hidden sm:table-cell">Start</TableHead>
                 <TableHead className="hidden sm:table-cell">End</TableHead>
                 <TableHead className="hidden md:table-cell">Break</TableHead>
@@ -110,18 +126,29 @@ export function ShiftsTable({ shifts, allShifts, payRate, onDeleteShift, grossPa
                 const workHours = calculateWorkHours(shift);
                 const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
                 const shiftPay = workHours * hourlyRate;
+                const store = getStore(shift.storeId);
                 return (
                   <TableRow key={shift.id}>
                     <TableCell>
-                      <div className="flex items-center gap-2 font-medium">
-                        {new Date(shift.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
-                        {shift.inCharge && <Star className="h-4 w-4 text-amber-400 fill-amber-400" title="In Charge Shift (+£0.25/hr)" />}
+                      <div className="font-medium">{new Date(shift.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground sm:hidden">
+                        {store ? <> <StoreIcon className="h-3 w-3" /> #{store.number} </>: ''}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      <div className="flex items-center gap-2">
+                         {store ? <> <StoreIcon className="h-4 w-4 text-muted-foreground" /> <div><div className="font-medium">{store.name}</div><div className="text-xs text-muted-foreground">#{store.number}</div></div> </> : 'N/A'}
                       </div>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">{shift.startTime}</TableCell>
                     <TableCell className="hidden sm:table-cell">{shift.endTime}</TableCell>
                     <TableCell className="hidden md:table-cell">{shift.breakDuration} min</TableCell>
-                    <TableCell>{workHours.toFixed(2)}</TableCell>
+                    <TableCell>
+                        <div className="flex items-center gap-1">
+                          {workHours.toFixed(2)}
+                          {shift.inCharge && <Star className="h-4 w-4 text-amber-400 fill-amber-400" title="In Charge Shift (+£0.25/hr)" />}
+                        </div>
+                    </TableCell>
                     <TableCell>£{shiftPay.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => onDeleteShift(shift.id)} disabled={isLocked}>
@@ -135,8 +162,10 @@ export function ShiftsTable({ shifts, allShifts, payRate, onDeleteShift, grossPa
             {shifts.length > 0 && (
                 <TableFooter>
                     <TableRow>
-                        <TableCell colSpan={3} className="hidden md:table-cell">Total</TableCell>
+                        <TableCell colSpan={4} className="hidden md:table-cell">Total</TableCell>
                         <TableCell className="md:hidden" colSpan={1}>Total</TableCell>
+                        <TableCell className="hidden sm:table-cell"></TableCell>
+                        <TableCell className="hidden sm:table-cell"></TableCell>
                         <TableCell className="hidden sm:table-cell"></TableCell>
                         <TableCell>{totalHours.toFixed(2)}</TableCell>
                         <TableCell>£{grossPay.toFixed(2)}</TableCell>

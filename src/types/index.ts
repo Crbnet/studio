@@ -1,3 +1,9 @@
+export interface Store {
+  id: string;
+  name: string;
+  number: string;
+}
+
 export interface Shift {
   id: string;
   date: string; // YYYY-MM-DD
@@ -5,4 +11,5 @@ export interface Shift {
   endTime: string; // HH:mm
   breakDuration: number; // in minutes
   inCharge?: boolean;
+  storeId?: string;
 }

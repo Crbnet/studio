@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Shift } from '@/types';
+import type { Shift, Store } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
@@ -14,17 +14,22 @@ const IN_CHARGE_BONUS = 0.25;
 
 export function HistoryPage() {
     const [allShifts, setAllShifts] = useState<Shift[]>([]);
+    const [stores, setStores] = useState<Store[]>([]);
     const [payRate, setPayRate] = useState<number>(0);
 
     useEffect(() => {
         try {
             const storedShifts = localStorage.getItem('shifts');
             const storedPayRate = localStorage.getItem('payRate');
+            const storedStores = localStorage.getItem('stores');
             if (storedShifts) {
                 setAllShifts(JSON.parse(storedShifts));
             }
             if (storedPayRate) {
                 setPayRate(JSON.parse(storedPayRate));
+            }
+            if (storedStores) {
+                setStores(JSON.parse(storedStores));
             }
         } catch (error) {
             console.error("Failed to parse from localStorage", error);
@@ -55,6 +60,8 @@ export function HistoryPage() {
         return durationHours - breakHours;
     };
     
+    const getStore = (storeId?: string) => stores.find(s => s.id === storeId);
+
     return (
         <Card>
             <CardHeader>
@@ -97,6 +104,7 @@ export function HistoryPage() {
                                             <TableHeader>
                                                 <TableRow>
                                                     <TableHead>Date</TableHead>
+                                                    <TableHead>Store</TableHead>
                                                     <TableHead>Time</TableHead>
                                                     <TableHead>Hours</TableHead>
                                                     <TableHead className="text-right">Pay</TableHead>
@@ -107,9 +115,11 @@ export function HistoryPage() {
                                                     const hours = calculateWorkHours(shift);
                                                     const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
                                                     const pay = hours * hourlyRate;
+                                                    const store = getStore(shift.storeId);
                                                     return (
                                                         <TableRow key={shift.id}>
                                                             <TableCell>{format(parseISO(shift.date), 'EEE, MMM d')}</TableCell>
+                                                            <TableCell>{store ? `${store.name} (${store.number})` : 'N/A'}</TableCell>
                                                             <TableCell>{shift.startTime} - {shift.endTime}</TableCell>
                                                             <TableCell>{hours.toFixed(2)}</TableCell>
                                                             <TableCell className="text-right">£{pay.toFixed(2)}</TableCell>
@@ -119,7 +129,7 @@ export function HistoryPage() {
                                             </TableBody>
                                             <TableFooter>
                                                 <TableRow>
-                                                    <TableCell colSpan={2}>Total</TableCell>
+                                                    <TableCell colSpan={3}>Total</TableCell>
                                                     <TableCell>{totalHours.toFixed(2)}</TableCell>
                                                     <TableCell className="text-right">£{grossPay.toFixed(2)}</TableCell>
                                                 </TableRow>
