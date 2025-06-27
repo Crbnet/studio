@@ -201,22 +201,23 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
                   <FormItem>
                     <FormLabel>Store</FormLabel>
                     <div className="flex items-center gap-2">
-                      <StoreIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Select onValueChange={field.onChange} value={field.value} defaultValue="">
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select a store" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="" disabled>Select a store</SelectItem>
-                          {stores.map(store => (
-                            <SelectItem key={store.id} value={store.id}>
-                              {store.name} ({store.number})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="relative flex-grow">
+                        <StoreIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                          <FormControl>
+                            <SelectTrigger className="w-full pl-8">
+                              <SelectValue placeholder="Select a store" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {stores.map(store => (
+                              <SelectItem key={store.id} value={store.id}>
+                                {store.name} ({store.number})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <Button type="button" variant="outline" size="icon" onClick={() => setIsStoreManagerOpen(true)}>
                         <Settings className="h-4 w-4" />
                       </Button>
