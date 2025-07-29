@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Shift History',
+  description: 'View your complete shift and pay history, grouped by pay periods. Track your earnings, hours, and fuel claims over time.'
 };
 
 

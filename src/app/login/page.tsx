@@ -3,7 +3,8 @@ import { Wallet } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Login',
+    title: 'Login or Sign Up',
+    description: 'Log in to your Crbnet Calculator account or sign up for free to start tracking your shifts, pay, and tax estimates.'
 };
 
 export default function LoginPage() {
