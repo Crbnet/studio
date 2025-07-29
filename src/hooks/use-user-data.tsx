@@ -74,19 +74,25 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
     if (!user) {
       throw new Error("No user is signed in to update data.");
     }
+
+    const hasDataUpdates = Object.keys(data).length > 0;
+    const hasShiftUpdates = newShifts.length > 0 || deletedShiftIds.length > 0;
+
+    if (!hasDataUpdates && !hasShiftUpdates) {
+      return; // Nothing to do
+    }
     
     const batch = writeBatch(db);
     const userDocRef = doc(db, "users", user.uid);
     
-    const cleanData: { [key: string]: any } = {};
-    Object.keys(data).forEach(key => {
-        const typedKey = key as keyof typeof data;
-        if (data[typedKey] !== undefined) {
-            cleanData[key] = data[typedKey];
-        }
-    });
-
-    if (Object.keys(cleanData).length > 0) {
+    if (hasDataUpdates) {
+      const cleanData: { [key: string]: any } = {};
+      Object.keys(data).forEach(key => {
+          const typedKey = key as keyof typeof data;
+          if (data[typedKey] !== undefined) {
+              cleanData[key] = data[typedKey];
+          }
+      });
       batch.update(userDocRef, cleanData);
     }
     
