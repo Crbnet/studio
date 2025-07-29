@@ -345,3 +345,5 @@ export function HistoryPage() {
         </Card>
     );
 }
+
+    
