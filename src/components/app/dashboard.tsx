@@ -129,7 +129,7 @@ function ShiftManager({
 }: {
   shifts: Shift[];
   stores: Store[];
-  homeStoreId?: string;
+  homeStoreId?: string | null;
   payRate: number;
   onUpdate: (data: Partial<UserData>) => void;
 }) {
@@ -167,7 +167,7 @@ function ShiftManager({
     const updatedShifts = shifts.map(shift => shift.storeId === id ? { ...shift, storeId: undefined } : shift);
     let newHomeStoreId = homeStoreId;
     if (homeStoreId === id) {
-        newHomeStoreId = undefined;
+        newHomeStoreId = null;
     }
     onUpdate({ stores: updatedStores, shifts: updatedShifts, homeStoreId: newHomeStoreId });
   };

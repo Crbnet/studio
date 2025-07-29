@@ -22,5 +22,5 @@ export interface UserData {
     lastPayday: string | null; // Stored as ISO string
     stores: Store[];
     shifts: Shift[];
-    homeStoreId?: string;
+    homeStoreId?: string | null;
 }

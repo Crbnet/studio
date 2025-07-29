@@ -40,7 +40,7 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
               lastPayday: null,
               stores: [],
               shifts: [],
-              homeStoreId: undefined,
+              homeStoreId: null,
             };
             await setDoc(userDocRef, initialData);
             setUserData(initialData);
