@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { Shift, Store, UserData } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -9,32 +9,14 @@ import { startOfWeek, parseISO, format } from 'date-fns';
 import { Button } from '../ui/button';
 import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { getUserData } from '@/services/user-service';
-import { useToast } from '@/hooks/use-toast';
+import { useUserData } from '@/hooks/use-user-data';
 
 const IN_CHARGE_BONUS = 0.25;
 
 export function HistoryPage() {
-    const [userData, setUserData] = useState<UserData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const { toast } = useToast();
+    const { userData, loading } = useUserData();
 
     const { shifts: allShifts = [], stores = [], payRate = 12.21 } = userData || {};
-
-    useEffect(() => {
-        const fetchData = async () => {
-          try {
-            const data = await getUserData();
-            setUserData(data);
-          } catch (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to load user data.' });
-            console.error(error);
-          } finally {
-            setLoading(false);
-          }
-        };
-        fetchData();
-      }, [toast]);
 
     const groupedShifts = useMemo(() => {
         const groups: { [weekStart: string]: Shift[] } = {};

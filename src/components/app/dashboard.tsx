@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { Shift, Store, UserData } from '@/types';
 import { ShiftForm } from '@/components/app/shift-form';
 import { ShiftsTable } from '@/components/app/shifts-table';
@@ -14,38 +14,21 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, isThisWeek, parseISO, getDay, isSameWeek, subWeeks } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { getUserData, updateUserData } from '@/services/user-service';
+import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
 
 const IN_CHARGE_BONUS = 0.25;
 
 export function Dashboard() {
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { userData, loading, updateUserData } = useUserData();
   const [viewDate, setViewDate] = useState(new Date());
   const { toast } = useToast();
 
   const { shifts = [], stores = [], payRate = 12.21, lastPayday = null } = userData || {};
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await getUserData();
-        setUserData(data);
-      } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to load user data.' });
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [toast]);
   
   const handleUpdate = async (data: Partial<UserData>) => {
     try {
       await updateUserData(data);
-      setUserData(prev => prev ? { ...prev, ...data } : null);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to save changes.' });
       console.error(error);
@@ -265,5 +248,3 @@ export function Dashboard() {
     </div>
   );
 }
-
-    

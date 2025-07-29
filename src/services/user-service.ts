@@ -1,7 +1,9 @@
 import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import type { Shift, Store, UserData } from '@/types';
+import type { UserData } from '@/types';
 
+// This function is kept for cases where a non-realtime fetch might be needed,
+// but the primary data flow will now use the real-time listener in use-user-data.tsx.
 export const getUserData = async (): Promise<UserData | null> => {
   const user = auth.currentUser;
   if (!user) return null;
@@ -12,7 +14,6 @@ export const getUserData = async (): Promise<UserData | null> => {
   if (docSnap.exists()) {
     return docSnap.data() as UserData;
   } else {
-    // This case should ideally not be hit if user is created properly on signup
     console.log("No such document! Creating one.");
     const initialData: UserData = {
       email: user.email || '',
