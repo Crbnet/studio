@@ -22,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarIcon, Clock, Coffee, PlusCircle, AlertCircle, Store as StoreIcon, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, startOfWeek, isSameWeek, subWeeks, getDay, isBefore, startOfDay } from 'date-fns';
+import { format, startOfWeek, subWeeks, getDay, isBefore, startOfDay } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 import { StoreManager } from './store-manager';
@@ -86,27 +86,26 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
     form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0, inCharge: false, storeId: '' });
   }
 
-  const weekStartsOn = 1; // Monday
-
   const getCalendarDisabledDays = (date: Date) => {
     const today = startOfDay(new Date());
-    const dateToCompare = startOfDay(date);
-    const weekStartForDate = startOfWeek(dateToCompare, { weekStartsOn });
+    const weekStartsOn = 1; // Monday
+    const currentWeekStart = startOfWeek(today, { weekStartsOn });
+    const dateWeekStart = startOfWeek(startOfDay(date), { weekStartsOn });
 
     // Allow current and future weeks
-    if (!isBefore(weekStartForDate, today)) {
-        return false;
+    if (dateWeekStart >= currentWeekStart) {
+      return false;
     }
 
-    // Special case for Monday: allow editing the previous week
+    // Special case for Monday: allow the previous week
     const isMonday = getDay(today) === 1;
     const previousWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn });
-    if (isMonday && isSameWeek(dateToCompare, previousWeekStart, { weekStartsOn })) {
-        return false;
+    if (isMonday && dateWeekStart.getTime() === previousWeekStart.getTime()) {
+      return false;
     }
-
+    
     // Lock all other past dates
-    return true;
+    return isBefore(startOfDay(date), previousWeekStart);
   };
 
   return (
