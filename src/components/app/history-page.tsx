@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from 'react';
-import type { Shift, Store } from '@/types';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import type { Shift, Store, UserData } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
@@ -11,6 +11,9 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2, Info } from 'lucide-react';
 import { useUserData } from '@/hooks/use-user-data';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { useAuth } from '@/hooks/use-auth';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const IN_CHARGE_BONUS = 0.25;
 const FUEL_RATE_PER_MILE = 0.30;
@@ -26,21 +29,21 @@ const calculateWorkHours = (shift: Shift) => {
 
 
 // Component for the new Pay Cycle View
-function PayCycleView({ shifts, stores, payRate, homeStoreId, lastPayday }: { shifts: Shift[], stores: Store[], payRate: number, homeStoreId?: string | null, lastPayday: string }) {
+function PayCycleView({ allShifts, stores, payRate, lastPayday }: { allShifts: Shift[], stores: Store[], payRate: number, lastPayday: string }) {
     
     const getStore = (storeId?: string) => stores.find(s => s.id === storeId);
 
     const payCycles = useMemo(() => {
         const cycles: { [key: string]: { startDate: Date, endDate: Date, weeks: { [key: string]: Shift[] } } } = {};
+        if (!lastPayday) return [];
+
         const lastPaydayDate = parseISO(lastPayday);
         
-        // Sort shifts from oldest to newest to process them chronologically
-        const sortedShifts = [...shifts].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const sortedShifts = [...allShifts].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         sortedShifts.forEach(shift => {
             const shiftDate = parseISO(shift.date);
             
-            // Find which pay cycle this shift belongs to
             let cycleEndDate = new Date(lastPaydayDate);
             while (shiftDate > cycleEndDate) {
                 cycleEndDate = addDays(cycleEndDate, 28);
@@ -66,9 +69,9 @@ function PayCycleView({ shifts, stores, payRate, homeStoreId, lastPayday }: { sh
         });
 
         return Object.entries(cycles).sort(([keyA], [keyB]) => new Date(keyB).getTime() - new Date(keyA).getTime());
-    }, [shifts, lastPayday]);
+    }, [allShifts, lastPayday]);
 
-    const calculateWeekStats = (weekShifts: Shift[]) => {
+    const calculateWeekStats = useCallback((weekShifts: Shift[]) => {
         return weekShifts.reduce((acc, shift) => {
             const hours = calculateWorkHours(shift);
             const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
@@ -86,7 +89,7 @@ function PayCycleView({ shifts, stores, payRate, homeStoreId, lastPayday }: { sh
             acc.totalPay += grossPay + fuelExpense;
             return acc;
         }, { totalHours: 0, grossPay: 0, totalFuel: 0, totalPay: 0 });
-    };
+    }, [payRate, getStore]);
 
     return (
         <Accordion type="single" collapsible className="w-full">
@@ -171,12 +174,12 @@ function PayCycleView({ shifts, stores, payRate, homeStoreId, lastPayday }: { sh
 
 
 // Component for the original Weekly View (as a fallback)
-function WeeklyView({ shifts, stores, payRate }: { shifts: Shift[], stores: Store[], payRate: number }) {
+function WeeklyView({ allShifts, stores, payRate }: { allShifts: Shift[], stores: Store[], payRate: number }) {
     const getStore = (storeId?: string) => stores.find(s => s.id === storeId);
     
     const groupedShifts = useMemo(() => {
         const groups: { [weekStart: string]: Shift[] } = {};
-        shifts
+        allShifts
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
             .forEach(shift => {
                 const weekStart = startOfWeek(parseISO(shift.date), { weekStartsOn: 1 });
@@ -187,7 +190,7 @@ function WeeklyView({ shifts, stores, payRate }: { shifts: Shift[], stores: Stor
                 groups[weekStartString].push(shift);
             });
         return groups;
-    }, [shifts]);
+    }, [allShifts]);
 
     return (
         <Accordion type="single" collapsible className="w-full">
@@ -274,14 +277,39 @@ function WeeklyView({ shifts, stores, payRate }: { shifts: Shift[], stores: Stor
 }
 
 export function HistoryPage() {
-    const { userData, loading } = useUserData();
-    const { shifts = [], stores = [], payRate = 12.21, homeStoreId, lastPayday } = userData || {};
+    const { user } = useAuth();
+    const { userData, loading: userDataLoading } = useUserData();
+    const [allShifts, setAllShifts] = useState<Shift[]>([]);
+    const [isLoadingShifts, setIsLoadingShifts] = useState(true);
+
+    useEffect(() => {
+      const fetchAllShifts = async () => {
+        if (!user) {
+            setIsLoadingShifts(false);
+            return;
+        }
+        try {
+            const shiftsRef = collection(db, `users/${user.uid}/shifts`);
+            const querySnapshot = await getDocs(shiftsRef);
+            const allShiftsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shift));
+            setAllShifts(allShiftsData);
+        } catch (error) {
+            console.error("Error fetching all shifts: ", error);
+        } finally {
+            setIsLoadingShifts(false);
+        }
+      };
+
+      fetchAllShifts();
+    }, [user]);
+
+    const { stores = [], payRate = 12.21, lastPayday } = userData || {};
     
-    if (loading) {
+    if (userDataLoading || isLoadingShifts) {
         return <div className="flex justify-center items-center h-[calc(100vh-200px)]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
-    const hasShifts = shifts && shifts.length > 0;
+    const hasShifts = allShifts && allShifts.length > 0;
 
     return (
         <Card>
@@ -300,7 +328,7 @@ export function HistoryPage() {
                 {!hasShifts ? (
                     <p className="text-center text-muted-foreground py-12">No shifts have been logged yet.</p>
                 ) : lastPayday ? (
-                    <PayCycleView shifts={shifts} stores={stores} payRate={payRate} homeStoreId={homeStoreId} lastPayday={lastPayday} />
+                    <PayCycleView allShifts={allShifts} stores={stores} payRate={payRate} lastPayday={lastPayday} />
                 ) : (
                     <>
                     <Alert className="mb-4">
@@ -310,7 +338,7 @@ export function HistoryPage() {
                           To see your shifts grouped by pay cycle, set your last payday on the dashboard.
                         </AlertDescription>
                     </Alert>
-                    <WeeklyView shifts={shifts} stores={stores} payRate={payRate} />
+                    <WeeklyView allShifts={allShifts} stores={stores} payRate={payRate} />
                     </>
                 )}
             </CardContent>

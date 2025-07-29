@@ -13,14 +13,14 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, FileDown, Bot, Star, AlertCircle, Store as StoreIcon, Fuel } from 'lucide-react';
+import { Trash2, FileDown, Bot, Star, AlertCircle, Store as StoreIcon, Loader2 } from 'lucide-react';
 import { TaxEstimatorDialog } from '@/components/app/tax-estimator-dialog';
 import { useMemo } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 interface ShiftsTableProps {
   shifts: Shift[];
-  allShifts: Shift[];
+  isLoading: boolean;
   stores: Store[];
   payRate: number;
   onDeleteShift: (id: string) => void;
@@ -31,7 +31,7 @@ interface ShiftsTableProps {
 const IN_CHARGE_BONUS = 0.25;
 const FUEL_RATE_PER_MILE = 0.30;
 
-export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift, grossPay, isLocked }: ShiftsTableProps) {
+export function ShiftsTable({ shifts, isLoading, stores, payRate, onDeleteShift, grossPay, isLocked }: ShiftsTableProps) {
   
   const getStore = (storeId?: string) => stores.find(s => s.id === storeId);
   
@@ -64,45 +64,9 @@ export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift,
 
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Store Name', 'Store Number', 'Start Time', 'End Time', 'Break (min)', 'In Charge', 'Hours Worked', 'Gross Pay (£)', 'Fuel Claim', 'Fuel Expense (£)', 'Total Pay (£)'];
-    const csvRows = allShifts
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .map(shift => {
-        const hours = calculateWorkHours(shift);
-        const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
-        const pay = hours * hourlyRate;
-        const store = getStore(shift.storeId);
-        let fuelExpense = 0;
-        if (shift.isFuelClaim && store?.mileage) {
-          fuelExpense = store.mileage * 2 * FUEL_RATE_PER_MILE;
-        }
-
-        return [
-          shift.date,
-          store?.name || 'N/A',
-          store?.number || 'N/A',
-          shift.startTime,
-          shift.endTime,
-          shift.breakDuration,
-          shift.inCharge ? 'Yes' : 'No',
-          hours.toFixed(2),
-          pay.toFixed(2),
-          shift.isFuelClaim ? 'Yes' : 'No',
-          fuelExpense.toFixed(2),
-          (pay + fuelExpense).toFixed(2),
-        ].join(',');
-    });
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + [headers.join(','), ...csvRows].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "all_shifts.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    alert("CSV export will be available soon for all shifts!");
+    // This functionality would need to be updated to fetch all shifts before exporting
+    // For now, we are only disabling it visually but keeping the logic shell.
   };
 
   return (
@@ -114,25 +78,25 @@ export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift,
         </div>
         <div className="flex items-center gap-2">
             <TaxEstimatorDialog grossPay={grossPay} payRate={payRate} totalHours={totalHours} />
-            <Button variant="outline" size="sm" onClick={exportToCSV} disabled={allShifts.length === 0}>
+            <Button variant="outline" size="sm" onClick={exportToCSV} disabled>
                 <FileDown className="mr-2 h-4 w-4" />
                 Export All
             </Button>
         </div>
       </CardHeader>
       <CardContent>
-        {isLocked && (
+        {isLocked && !isLoading && (
             <Alert variant="default" className="mb-4 bg-amber-50 border-amber-200 text-amber-800">
                 <AlertCircle className="h-4 w-4 !text-amber-800" />
                 <AlertTitle className="font-semibold">Week Locked</AlertTitle>
                 <AlertDescription className="text-amber-700">
-                You cannot delete shifts from past weeks.
+                You cannot add or delete shifts for this week.
                 </AlertDescription>
             </Alert>
         )}
-        <div className="border rounded-md">
+        <div className="border rounded-md min-h-[200px]">
           <Table>
-            {shifts.length === 0 && <TableCaption>No shifts logged for this week.</TableCaption>}
+            {shifts.length === 0 && !isLoading && <TableCaption>No shifts logged for this week.</TableCaption>}
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
@@ -145,49 +109,57 @@ export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift,
               </TableRow>
             </TableHeader>
             <TableBody>
-              {shifts.map(shift => {
-                const workHours = calculateWorkHours(shift);
-                const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
-                const shiftPay = workHours * hourlyRate;
-                const store = getStore(shift.storeId);
-                let fuelExpense = 0;
-                if (shift.isFuelClaim && store?.mileage) {
-                    fuelExpense = store.mileage * 2 * FUEL_RATE_PER_MILE;
-                }
-                const totalPay = shiftPay + fuelExpense;
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center h-48">
+                      <Loader2 className="h-6 w-6 animate-spin inline-block" />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                shifts.map(shift => {
+                  const workHours = calculateWorkHours(shift);
+                  const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
+                  const shiftPay = workHours * hourlyRate;
+                  const store = getStore(shift.storeId);
+                  let fuelExpense = 0;
+                  if (shift.isFuelClaim && store?.mileage) {
+                      fuelExpense = store.mileage * 2 * FUEL_RATE_PER_MILE;
+                  }
+                  const totalPay = shiftPay + fuelExpense;
 
-                return (
-                  <TableRow key={shift.id}>
-                    <TableCell>
-                      <div className="font-medium">{new Date(shift.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-                      <div className="text-sm text-muted-foreground sm:hidden">{shift.startTime} - {shift.endTime}</div>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <div className="flex items-center gap-2">
-                         {store ? <> <StoreIcon className="h-4 w-4 text-muted-foreground" /> <div><div className="font-medium">{store.name}</div><div className="text-xs text-muted-foreground">#{store.number}</div></div> </> : 'N/A'}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                        <div className="flex items-center gap-1">
-                          {workHours.toFixed(2)}
-                          {shift.inCharge && <Star className="h-4 w-4 text-amber-400 fill-amber-400" title="In Charge Shift (+£0.25/hr)" />}
+                  return (
+                    <TableRow key={shift.id}>
+                      <TableCell>
+                        <div className="font-medium">{new Date(shift.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                        <div className="text-sm text-muted-foreground sm:hidden">{shift.startTime} - {shift.endTime}</div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <div className="flex items-center gap-2">
+                          {store ? <> <StoreIcon className="h-4 w-4 text-muted-foreground" /> <div><div className="font-medium">{store.name}</div><div className="text-xs text-muted-foreground">#{store.number}</div></div> </> : 'N/A'}
                         </div>
-                    </TableCell>
-                    <TableCell>£{shiftPay.toFixed(2)}</TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {shift.isFuelClaim ? `£${fuelExpense.toFixed(2)}` : '-'}
-                    </TableCell>
-                    <TableCell>£{totalPay.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => onDeleteShift(shift.id)} disabled={isLocked}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                      </TableCell>
+                      <TableCell>
+                          <div className="flex items-center gap-1">
+                            {workHours.toFixed(2)}
+                            {shift.inCharge && <Star className="h-4 w-4 text-amber-400 fill-amber-400" title="In Charge Shift (+£0.25/hr)" />}
+                          </div>
+                      </TableCell>
+                      <TableCell>£{shiftPay.toFixed(2)}</TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {shift.isFuelClaim ? `£${fuelExpense.toFixed(2)}` : '-'}
+                      </TableCell>
+                      <TableCell>£{totalPay.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => onDeleteShift(shift.id)} disabled={isLocked}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
-            {shifts.length > 0 && (
+            {shifts.length > 0 && !isLoading && (
                 <TableFooter>
                     <TableRow>
                         <TableCell colSpan={2} className="hidden md:table-cell">Total</TableCell>

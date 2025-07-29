@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { UserData } from '@/types';
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -70,15 +71,16 @@ export function AuthForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
       
-      // Create a document for the new user in Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        email: user.email,
+      const initialUserData: UserData = {
+        email: user.email || '',
         payRate: 12.21,
         lastPayday: null,
         stores: [],
-        shifts: [],
+        shifts: [], // This is conceptual, the subcollection is implicitly created
         homeStoreId: null
-      });
+      };
+
+      await setDoc(doc(db, "users", user.uid), initialUserData);
 
       toast({ title: "Success", description: "Account created successfully." });
     } catch (error: any) {

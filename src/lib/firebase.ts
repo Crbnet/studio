@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, collection, doc, writeBatch, runTransaction, getDoc, setDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   "projectId": "wagewise-1cvfw",

@@ -2,7 +2,7 @@ export interface Store {
   id: string;
   name: string;
   number: string;
-  mileage?: number; // Mileage from home store
+  mileage?: number; // Mileage from home
 }
 
 export interface Shift {
@@ -21,6 +21,6 @@ export interface UserData {
     payRate: number;
     lastPayday: string | null; // Stored as ISO string
     stores: Store[];
-    shifts: Shift[];
+    shifts: Shift[]; // This will now represent a subcollection, not a field in the main doc
     homeStoreId?: string | null;
 }

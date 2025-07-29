@@ -1,16 +1,16 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { doc, onSnapshot, updateDoc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from './use-auth';
-import type { UserData } from '@/types';
+import type { UserData, Shift } from '@/types';
 import { useToast } from './use-toast';
 
 interface UserDataContextType {
-  userData: UserData | null;
+  userData: Omit<UserData, 'shifts'> | null;
   loading: boolean;
-  updateUserData: (data: Partial<UserData>) => Promise<void>;
+  updateUserData: (data: Partial<Omit<UserData, 'shifts'>>, newShifts?: Shift[]) => Promise<void>;
 }
 
 const UserDataContext = createContext<UserDataContextType | undefined>(undefined);
@@ -18,7 +18,7 @@ const UserDataContext = createContext<UserDataContextType | undefined>(undefined
 export const UserDataProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [userData, setUserData] = useState<UserData | null>(null);
+  const [userData, setUserData] = useState<Omit<UserData, 'shifts'> | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,10 +29,9 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
       const unsubscribe = onSnapshot(userDocRef, 
         async (docSnap) => {
           if (docSnap.exists()) {
-            setUserData(docSnap.data() as UserData);
+            const { shifts, ...restOfData } = docSnap.data() as UserData;
+            setUserData(restOfData);
           } else {
-            // This case can be hit if the user document wasn't created on signup for some reason.
-            // Let's ensure it's created.
             console.log("No such document! Creating one for user:", user.uid);
             const initialData: UserData = {
               email: user.email || '',
@@ -43,7 +42,8 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
               homeStoreId: null,
             };
             await setDoc(userDocRef, initialData);
-            setUserData(initialData);
+            const { shifts, ...restOfData } = initialData;
+            setUserData(restOfData);
           }
           setLoading(false);
         },
@@ -58,21 +58,34 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
         }
       );
 
-      // Cleanup subscription on unmount
       return () => unsubscribe();
     } else {
-      // No user, clear data and loading state
       setUserData(null);
       setLoading(false);
     }
   }, [user, toast]);
 
-  const updateUserData = useCallback(async (data: Partial<UserData>) => {
+  const updateUserData = useCallback(async (data: Partial<Omit<UserData, 'shifts'>>, newShifts: Shift[] = []) => {
     if (!user) {
       throw new Error("No user is signed in to update data.");
     }
+    
+    const batch = writeBatch(db);
     const userDocRef = doc(db, "users", user.uid);
-    await updateDoc(userDocRef, data);
+    
+    if (Object.keys(data).length > 0) {
+      batch.update(userDocRef, data);
+    }
+    
+    if (newShifts.length > 0) {
+      newShifts.forEach(shift => {
+        const shiftDocRef = doc(db, `users/${user.uid}/shifts`, shift.id);
+        batch.set(shiftDocRef, shift);
+      });
+    }
+
+    await batch.commit();
+
   }, [user]);
 
   return (
