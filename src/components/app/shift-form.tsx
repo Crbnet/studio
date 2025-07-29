@@ -22,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarIcon, Clock, Coffee, PlusCircle, AlertCircle, Store as StoreIcon, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, startOfWeek, endOfWeek } from 'date-fns';
+import { format, startOfWeek, endOfWeek, isThisWeek, getDay, isSameWeek, subWeeks, addDays, subDays } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 import { StoreManager } from './store-manager';
@@ -86,9 +86,25 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
     form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0, inCharge: false, storeId: '' });
   }
 
-  const weekStartsOn = 1;
-  const weekStart = startOfWeek(viewDate, { weekStartsOn });
-  const weekEnd = endOfWeek(viewDate, { weekStartsOn });
+  const weekStartsOn = 1; // Monday
+
+  const getCalendarDisabledDays = (date: Date) => {
+    const today = new Date();
+    const isCurrentWeek = isThisWeek(date, { weekStartsOn });
+    const isMonday = getDay(today) === 1;
+    const isPreviousWeek = isSameWeek(date, subWeeks(today, 1), { weekStartsOn });
+    const isFutureDate = date > addDays(today, 1);
+
+    if (isFutureDate) return true;
+
+    if (isMonday && (isPreviousWeek || isCurrentWeek)) {
+      return false; // Unlock prev week on Monday
+    }
+
+    if(isCurrentWeek) return false;
+
+    return true; // Lock all other past dates
+  };
 
   return (
     <Card>
@@ -109,7 +125,7 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
             <AlertCircle className="h-4 w-4 !text-amber-800" />
             <AlertTitle className="font-semibold">Editing Locked</AlertTitle>
             <AlertDescription className="text-amber-700">
-              You can only add shifts to the current week. Navigate to "Today" to add a new shift.
+              You can only add shifts for the current week (and the previous week on Mondays).
             </AlertDescription>
           </Alert>
         )}
@@ -148,9 +164,7 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
                         selected={field.value}
                         onSelect={field.onChange}
                         weekStartsOn={1}
-                        disabled={(date) =>
-                          date > weekEnd || date < weekStart
-                        }
+                        disabled={getCalendarDisabledDays}
                         defaultMonth={viewDate}
                         initialFocus
                       />
@@ -202,14 +216,15 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
                     <FormLabel>Store</FormLabel>
                     <div className="flex items-center gap-2">
                       <div className="relative flex-grow">
-                        <StoreIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <StoreIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
                         <Select onValueChange={field.onChange} value={field.value || ''}>
                           <FormControl>
                             <SelectTrigger className="w-full pl-8">
-                              <SelectValue placeholder="Select a store" />
+                                <SelectValue placeholder="Select a store" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                             <SelectItem value="" disabled>Select a store</SelectItem>
                             {stores.map(store => (
                               <SelectItem key={store.id} value={store.id}>
                                 {store.name} ({store.number})
@@ -276,3 +291,5 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
     </Card>
   );
 }
+
+    

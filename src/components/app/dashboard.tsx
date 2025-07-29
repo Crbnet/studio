@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, CalendarDays, PoundSterling, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, isThisWeek, parseISO } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, isThisWeek, parseISO, getDay, isSameWeek, subWeeks } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { getUserData, updateUserData } from '@/services/user-service';
 import { useToast } from '@/hooks/use-toast';
@@ -99,7 +99,24 @@ export function Dashboard() {
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [shifts, weekStart, weekEnd]);
 
-  const isLocked = !isThisWeek(viewDate, { weekStartsOn });
+  const isLocked = useMemo(() => {
+    const today = new Date();
+    const isCurrentWeek = isThisWeek(viewDate, { weekStartsOn });
+    
+    // Check if today is Monday (1 for Monday in date-fns)
+    const isMonday = getDay(today) === 1;
+    
+    // Check if the viewDate is for the immediately preceding week
+    const isPreviousWeek = isSameWeek(viewDate, subWeeks(today, 1), { weekStartsOn });
+
+    // Unlock the previous week if today is Monday
+    if (isMonday && isPreviousWeek) {
+      return false;
+    }
+
+    // Otherwise, only the current week is unlocked
+    return !isCurrentWeek;
+  }, [viewDate]);
   
   const grossPayForWeek = useMemo(() => {
     return visibleShifts.reduce((total, shift) => {
@@ -248,3 +265,5 @@ export function Dashboard() {
     </div>
   );
 }
+
+    
