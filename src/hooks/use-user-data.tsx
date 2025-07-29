@@ -75,40 +75,42 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
       throw new Error("No user is signed in to update data.");
     }
     
-    const hasDataUpdates = Object.keys(data).length > 0;
-    const hasShiftUpdates = newShifts.length > 0 || deletedShiftIds.length > 0;
+    try {
+        const batch = writeBatch(db);
+        const userDocRef = doc(db, "users", user.uid);
 
-    if (!hasDataUpdates && !hasShiftUpdates) {
-      return; 
+        // Always merge data to ensure we don't overwrite fields unintentionally.
+        // The `data` object might contain just `stores` or just `homeStoreId`, etc.
+        if (Object.keys(data).length > 0) {
+            batch.set(userDocRef, data, { merge: true });
+        }
+        
+        // Add or update new shifts in the subcollection.
+        newShifts.forEach(shift => {
+          const shiftDocRef = doc(db, `users/${user.uid}/shifts`, shift.id);
+          batch.set(shiftDocRef, shift);
+        });
+
+        // Delete shifts from the subcollection.
+        deletedShiftIds.forEach(id => {
+            const shiftDocRef = doc(db, `users/${user.uid}/shifts`, id);
+            batch.delete(shiftDocRef);
+        });
+
+        await batch.commit();
+
+    } catch (error) {
+        console.error("Error updating user data:", error);
+        toast({
+            variant: "destructive",
+            title: "Save Error",
+            description: "Your changes could not be saved. Please try again.",
+        });
+        // Re-throw the error if you want calling components to be able to catch it.
+        throw error;
     }
-    
-    const batch = writeBatch(db);
-    const userDocRef = doc(db, "users", user.uid);
-    
-    if (hasDataUpdates) {
-      const cleanData: { [key: string]: any } = {};
-      Object.keys(data).forEach(key => {
-          const typedKey = key as keyof typeof data;
-          if (data[typedKey] !== undefined) {
-              cleanData[key] = data[typedKey];
-          }
-      });
-      batch.update(userDocRef, cleanData);
-    }
-    
-    newShifts.forEach(shift => {
-      const shiftDocRef = doc(db, `users/${user.uid}/shifts`, shift.id);
-      batch.set(shiftDocRef, shift);
-    });
 
-    deletedShiftIds.forEach(id => {
-        const shiftDocRef = doc(db, `users/${user.uid}/shifts`, id);
-        batch.delete(shiftDocRef);
-    });
-
-    await batch.commit();
-
-  }, [user]);
+  }, [user, toast]);
 
   return (
     <UserDataContext.Provider value={{ userData, loading, updateUserData }}>
