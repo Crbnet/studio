@@ -27,9 +27,8 @@ if (isFirebaseConfigValid) {
     db = getFirestore(app);
 } else {
     // This will prevent the app from crashing if firebase config is not set
-    // You can add further handling here, like showing a message to the user
     console.warn("Firebase configuration is missing or incomplete. Firebase services will be disabled.");
-    // Provide dummy objects to avoid crashing the app
+    // Provide dummy objects to avoid crashing the app, and allow the UI to show a warning.
     app = {} as FirebaseApp;
     auth = {} as Auth;
     db = {} as Firestore;

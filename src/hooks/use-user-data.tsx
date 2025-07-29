@@ -74,24 +74,27 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
     if (!user) {
       throw new Error("No user is signed in to update data.");
     }
+
+    const hasDataUpdates = Object.keys(data).length > 0;
+    const hasShiftUpdates = newShifts.length > 0 || deletedShiftIds.length > 0;
+    
+    if (!hasDataUpdates && !hasShiftUpdates) {
+        return; // Nothing to update
+    }
     
     try {
         const batch = writeBatch(db);
         const userDocRef = doc(db, "users", user.uid);
 
-        // Always merge data to ensure we don't overwrite fields unintentionally.
-        // The `data` object might contain just `stores` or just `homeStoreId`, etc.
-        if (Object.keys(data).length > 0) {
+        if (hasDataUpdates) {
             batch.set(userDocRef, data, { merge: true });
         }
         
-        // Add or update new shifts in the subcollection.
         newShifts.forEach(shift => {
           const shiftDocRef = doc(db, `users/${user.uid}/shifts`, shift.id);
           batch.set(shiftDocRef, shift);
         });
 
-        // Delete shifts from the subcollection.
         deletedShiftIds.forEach(id => {
             const shiftDocRef = doc(db, `users/${user.uid}/shifts`, id);
             batch.delete(shiftDocRef);
@@ -106,7 +109,6 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
             title: "Save Error",
             description: "Your changes could not be saved. Please try again.",
         });
-        // Re-throw the error if you want calling components to be able to catch it.
         throw error;
     }
 
