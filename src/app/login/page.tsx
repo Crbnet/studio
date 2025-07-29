@@ -1,5 +1,10 @@
 import { AuthForm } from '@/components/app/auth-form';
 import { Wallet } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Login',
+};
 
 export default function LoginPage() {
   return (

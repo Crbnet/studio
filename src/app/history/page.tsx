@@ -1,5 +1,11 @@
 import { HistoryPage } from '@/components/app/history-page';
 import { Header } from '@/components/app/header';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Shift History',
+};
+
 
 export default function History() {
   return (
