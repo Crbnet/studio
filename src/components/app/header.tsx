@@ -7,6 +7,7 @@ import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
+import { deleteUserData } from '@/services/user-service';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,10 @@ export function Header() {
 
   const handleSignOut = async () => {
     try {
+      if (user && user.email === 'test@test.com') {
+        await deleteUserData(user.uid);
+        toast({ title: 'Success', description: 'Test user data has been cleared.' });
+      }
       await signOut(auth);
       toast({ title: 'Success', description: 'You have been signed out.' });
       // The AuthProvider will handle redirecting to the login page

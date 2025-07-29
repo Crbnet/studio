@@ -1,5 +1,5 @@
 import { db, auth } from '@/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { UserData } from '@/types';
 
 // This function is kept for cases where a non-realtime fetch might be needed,
@@ -33,4 +33,9 @@ export const updateUserData = async (data: Partial<UserData>): Promise<void> => 
 
   const userDocRef = doc(db, "users", user.uid);
   await updateDoc(userDocRef, data);
+};
+
+export const deleteUserData = async (uid: string): Promise<void> => {
+    const userDocRef = doc(db, "users", uid);
+    await deleteDoc(userDocRef);
 };
