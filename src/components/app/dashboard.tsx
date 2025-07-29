@@ -127,45 +127,67 @@ function ShiftManager({
   stores = [],
   homeStoreId,
   payRate,
-  onUpdate,
-  allShifts,
-  setAllShifts
+  onUpdate
 }: {
   stores: Store[];
   homeStoreId?: string | null;
   payRate: number;
   onUpdate: (data: Partial<UserData>, newShifts?: Shift[], deletedShiftIds?: string[]) => void;
-  allShifts: Shift[];
-  setAllShifts: React.Dispatch<React.SetStateAction<Shift[]>>
 }) {
   const { user } = useAuth();
   const [viewDate, setViewDate] = useState(new Date());
-  
-  const [isLoadingShifts, setIsLoadingShifts] = useState(false);
+  const [shiftsForWeek, setShiftsForWeek] = useState<Shift[]>([]);
+  const [isLoadingShifts, setIsLoadingShifts] = useState(true);
   const { toast } = useToast();
   
   const weekStartsOn = 1; // Monday
   const weekStart = useMemo(() => startOfWeek(viewDate, { weekStartsOn }), [viewDate]);
   const weekEnd = useMemo(() => endOfWeek(viewDate, { weekStartsOn }), [viewDate]);
 
-  const shiftsForWeek = useMemo(() => {
-    return allShifts
-        .filter(shift => {
-            const shiftDate = parseISO(shift.date);
-            return isWithinInterval(shiftDate, { start: weekStart, end: weekEnd });
-        })
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [allShifts, weekStart, weekEnd]);
+  useEffect(() => {
+    if (!user) {
+      setIsLoadingShifts(false);
+      return;
+    }
+    
+    const fetchShifts = async () => {
+      setIsLoadingShifts(true);
+      try {
+        const shiftsRef = collection(db, `users/${user.uid}/shifts`);
+        const q = query(shiftsRef, 
+          where("date", ">=", format(weekStart, 'yyyy-MM-dd')),
+          where("date", "<=", format(weekEnd, 'yyyy-MM-dd'))
+        );
+        
+        const snapshot = await getDocs(q);
+        const shiftsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shift));
+        
+        setShiftsForWeek(shiftsData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+
+      } catch (err) {
+        console.error("Failed to load shifts for week", err);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load shifts for the week.' });
+      } finally {
+        setIsLoadingShifts(false);
+      }
+    };
+    
+    fetchShifts();
+  }, [user, weekStart, weekEnd, toast]);
 
 
   const handleAddShift = (newShift: Omit<Shift, 'id'>) => {
     const shiftWithId = { ...newShift, id: crypto.randomUUID() };
-    setAllShifts(prev => [...prev, shiftWithId]); // Optimistic update
-    onUpdate({}, [shiftWithId]); // Pass shift to be written in a batch
+    const shiftDate = parseISO(shiftWithId.date);
+
+    if (isWithinInterval(shiftDate, { start: weekStart, end: weekEnd })) {
+      setShiftsForWeek(prev => [...prev, shiftWithId].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+    }
+    onUpdate({}, [shiftWithId]);
   };
 
   const handleDeleteShift = (id: string) => {
-    setAllShifts(prev => prev.filter(shift => shift.id !== id)); // Optimistic update
+    setShiftsForWeek(prev => prev.filter(shift => shift.id !== id)); // Optimistic update
     onUpdate({}, [], [id]); // Pass deleted shift ID
   };
   
@@ -274,50 +296,28 @@ function ShiftManager({
 
 
 export function Dashboard() {
-  const { user } = useAuth();
   const { userData, loading, updateUserData } = useUserData();
   const { toast } = useToast();
-  const [allShifts, setAllShifts] = useState<Shift[]>([]);
-  const [shiftsLoading, setShiftsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) {
-        setShiftsLoading(false);
-        return;
-    };
-    
-    setShiftsLoading(true);
-    const shiftsRef = collection(db, `users/${user.uid}/shifts`);
-    const q = query(shiftsRef);
-    
-    getDocs(q).then(snapshot => {
-        const shiftsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shift));
-        setAllShifts(shiftsData);
-        setShiftsLoading(false);
-    }).catch(err => {
-        console.error("Failed to load shifts", err);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not load shifts.' });
-        setShiftsLoading(false);
-    });
-
-  }, [user, toast]);
   
-  const handleUpdate = useCallback(async (data: Partial<UserData>, newShifts: Shift[] = [], deletedShiftIds: string[] = []) => {
-    if (!user) return;
+  const handleUpdate = useCallback(async (
+    data: Partial<UserData>, 
+    newShifts: Shift[] = [], 
+    deletedShiftIds: string[] = []
+  ) => {
     try {
         await updateUserData(data, newShifts, deletedShiftIds);
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to save changes.' });
         console.error(error);
     }
-  }, [user, updateUserData, toast]);
+  }, [updateUserData, toast]);
 
-  if (loading || shiftsLoading) {
+  if (loading) {
      return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
   
   if (!userData) {
-    return <div className="text-center p-8">No user data found.</div>
+    return <div className="text-center p-8">No user data found. Please try refreshing the page.</div>
   }
 
   return (
@@ -335,10 +335,10 @@ export function Dashboard() {
                 homeStoreId={userData.homeStoreId}
                 payRate={userData.payRate}
                 onUpdate={handleUpdate} 
-                allShifts={allShifts}
-                setAllShifts={setAllShifts}
             />
         </div>
     </div>
   );
 }
+
+    
