@@ -62,7 +62,7 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
       endTime: '',
       breakDuration: 0,
       inCharge: false,
-      storeId: '',
+      storeId: homeStoreId || '',
       isFuelClaim: false,
     }
   });
@@ -76,10 +76,10 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
       endTime: '',
       breakDuration: 0,
       inCharge: false,
-      storeId: '',
+      storeId: homeStoreId || '',
       isFuelClaim: false,
     });
-  }, [viewDate, form]);
+  }, [viewDate, form, homeStoreId]);
 
   useEffect(() => {
     // If the selected store is the home store, you can't claim fuel.
@@ -98,29 +98,28 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
         storeId: data.storeId || undefined,
         isFuelClaim: data.isFuelClaim
     });
-    form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0, inCharge: false, storeId: undefined, isFuelClaim: false });
+    form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0, inCharge: false, isFuelClaim: false });
   }
 
   const getCalendarDisabledDays = (date: Date) => {
     const today = startOfDay(new Date());
-    const weekStartsOn = 1; // Monday
-    const nextWeekEnd = endOfWeek(addWeeks(today, 1), { weekStartsOn });
     
     // Disable dates more than one week in the future
+    const nextWeekEnd = endOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
     if (isAfter(date, nextWeekEnd)) {
       return true;
     }
 
-    // Handle past dates
+    // Allow current week and next week, so anything before current week start is disabled,
+    // with an exception for Monday allowing previous week.
     const isMonday = getDay(today) === 1;
-    const previousWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn });
-
-    // If it's Monday, allow previous week. Otherwise, lock all past dates before previous week start.
+    const previousWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
+    
     if (isMonday) {
-      const twoWeeksAgoStart = startOfWeek(subWeeks(today, 2), { weekStartsOn });
-      return isBefore(date, twoWeeksAgoStart);
-    } else {
       return isBefore(date, previousWeekStart);
+    } else {
+      const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
+      return isBefore(date, currentWeekStart);
     }
   };
 

@@ -196,7 +196,7 @@ function ShiftManager({
     }
 
     // Lock all other weeks (past and future beyond next week)
-    return true;
+    return isAfter(today, viewingWeekStart);
   }, [viewDate]);
 
 
@@ -241,7 +241,7 @@ function ShiftManager({
             isLocked={isLocked}
             viewDate={viewDate}
             stores={stores}
-            homeStoreId={homeStoreId}
+            homeStoreId={homeStoreId || undefined}
             onAddStore={handleAddStore}
             onDeleteStore={handleDeleteStore}
             onSetHomeStore={handleSetHomeStore}
