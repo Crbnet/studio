@@ -10,7 +10,7 @@ export default function History() {
       </main>
       <footer className="py-4">
         <div className="container mx-auto text-center text-sm text-muted-foreground">
-          <p>Crbnet Calculator - Your Personal Shift & Pay Manager</p>
+          <p>Designed by Crbnet and built by AI</p>
         </div>
       </footer>
     </div>
