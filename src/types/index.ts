@@ -2,6 +2,7 @@ export interface Store {
   id: string;
   name: string;
   number: string;
+  mileage?: number; // Mileage from home store
 }
 
 export interface Shift {
@@ -12,6 +13,7 @@ export interface Shift {
   breakDuration: number; // in minutes
   inCharge?: boolean;
   storeId?: string;
+  isFuelClaim?: boolean;
 }
 
 export interface UserData {
@@ -20,4 +22,5 @@ export interface UserData {
     lastPayday: string | null; // Stored as ISO string
     stores: Store[];
     shifts: Shift[];
+    homeStoreId?: string;
 }

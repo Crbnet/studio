@@ -12,11 +12,12 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useUserData } from '@/hooks/use-user-data';
 
 const IN_CHARGE_BONUS = 0.25;
+const FUEL_RATE_PER_MILE = 0.30;
 
 export function HistoryPage() {
     const { userData, loading } = useUserData();
 
-    const { shifts: allShifts = [], stores = [], payRate = 12.21 } = userData || {};
+    const { shifts: allShifts = [], stores = [], payRate = 12.21, homeStoreId } = userData || {};
 
     const groupedShifts = useMemo(() => {
         const groups: { [weekStart: string]: Shift[] } = {};
@@ -69,20 +70,28 @@ export function HistoryPage() {
                             const weekEndDate = new Date(weekStartDate);
                             weekEndDate.setDate(weekEndDate.getDate() + 6);
 
-                            const { totalHours, grossPay } = shiftsInWeek.reduce((acc, shift) => {
+                            const { totalHours, grossPay, totalFuel, totalPay } = shiftsInWeek.reduce((acc, shift) => {
                                 const hours = calculateWorkHours(shift);
                                 const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
                                 acc.totalHours += hours;
                                 acc.grossPay += hours * hourlyRate;
+
+                                if (shift.isFuelClaim && shift.storeId) {
+                                  const store = getStore(shift.storeId);
+                                  if (store?.mileage) {
+                                    acc.totalFuel += store.mileage * 2 * FUEL_RATE_PER_MILE;
+                                  }
+                                }
+                                acc.totalPay = acc.grossPay + acc.totalFuel;
                                 return acc;
-                            }, { totalHours: 0, grossPay: 0 });
+                            }, { totalHours: 0, grossPay: 0, totalFuel: 0, totalPay: 0 });
 
                             return (
                                 <AccordionItem value={weekStart} key={weekStart}>
                                     <AccordionTrigger>
                                         <div className="flex justify-between w-full pr-4">
                                             <span>Week of {format(weekStartDate, 'PPP')} - {format(weekEndDate, 'PPP')}</span>
-                                            <span className="font-mono text-right">£{grossPay.toFixed(2)}</span>
+                                            <span className="font-mono text-right">£{totalPay.toFixed(2)}</span>
                                         </div>
                                     </AccordionTrigger>
                                     <AccordionContent>
@@ -91,9 +100,10 @@ export function HistoryPage() {
                                                 <TableRow>
                                                     <TableHead>Date</TableHead>
                                                     <TableHead>Store</TableHead>
-                                                    <TableHead>Time</TableHead>
                                                     <TableHead>Hours</TableHead>
-                                                    <TableHead className="text-right">Pay</TableHead>
+                                                    <TableHead>Pay</TableHead>
+                                                    <TableHead>Fuel</TableHead>
+                                                    <TableHead className="text-right">Total</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -102,22 +112,30 @@ export function HistoryPage() {
                                                     const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
                                                     const pay = hours * hourlyRate;
                                                     const store = getStore(shift.storeId);
+                                                    let fuelExpense = 0;
+                                                    if (shift.isFuelClaim && store?.mileage) {
+                                                      fuelExpense = store.mileage * 2 * FUEL_RATE_PER_MILE;
+                                                    }
+                                                    const total = pay + fuelExpense;
                                                     return (
                                                         <TableRow key={shift.id}>
                                                             <TableCell>{format(parseISO(shift.date), 'EEE, MMM d')}</TableCell>
                                                             <TableCell>{store ? `${store.name} (${store.number})` : 'N/A'}</TableCell>
-                                                            <TableCell>{shift.startTime} - {shift.endTime}</TableCell>
                                                             <TableCell>{hours.toFixed(2)}</TableCell>
-                                                            <TableCell className="text-right">£{pay.toFixed(2)}</TableCell>
+                                                            <TableCell>£{pay.toFixed(2)}</TableCell>
+                                                            <TableCell>{fuelExpense > 0 ? `£${fuelExpense.toFixed(2)}` : '-'}</TableCell>
+                                                            <TableCell className="text-right">£{total.toFixed(2)}</TableCell>
                                                         </TableRow>
                                                     );
                                                 })}
                                             </TableBody>
                                             <TableFooter>
                                                 <TableRow>
-                                                    <TableCell colSpan={3}>Total</TableCell>
+                                                    <TableCell colSpan={2}>Total</TableCell>
                                                     <TableCell>{totalHours.toFixed(2)}</TableCell>
-                                                    <TableCell className="text-right">£{grossPay.toFixed(2)}</TableCell>
+                                                    <TableCell>£{grossPay.toFixed(2)}</TableCell>
+                                                    <TableCell>£{totalFuel.toFixed(2)}</TableCell>
+                                                    <TableCell className="text-right">£{totalPay.toFixed(2)}</TableCell>
                                                 </TableRow>
                                             </TableFooter>
                                         </Table>

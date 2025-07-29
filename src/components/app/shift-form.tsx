@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription as CardDesc }
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarIcon, Clock, Coffee, PlusCircle, AlertCircle, Store as StoreIcon, Settings } from 'lucide-react';
+import { CalendarIcon, Clock, Coffee, PlusCircle, AlertCircle, Store as StoreIcon, Settings, Fuel } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, startOfWeek, subWeeks, getDay, isBefore, startOfDay, addWeeks, endOfWeek, isAfter } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
@@ -36,6 +36,7 @@ const shiftFormSchema = z.object({
   breakDuration: z.coerce.number().min(0, "Break must be positive.").default(0),
   inCharge: z.boolean().default(false),
   storeId: z.string().optional(),
+  isFuelClaim: z.boolean().default(false),
 });
 
 type ShiftFormValues = z.infer<typeof shiftFormSchema>;
@@ -45,11 +46,13 @@ interface ShiftFormProps {
   isLocked?: boolean;
   viewDate: Date;
   stores: Store[];
+  homeStoreId?: string;
   onAddStore: (store: Omit<Store, 'id'>) => void;
   onDeleteStore: (id: string) => void;
+  onSetHomeStore: (id: string) => void;
 }
 
-export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, onDeleteStore }: ShiftFormProps) {
+export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId, onAddStore, onDeleteStore, onSetHomeStore }: ShiftFormProps) {
   const [isStoreManagerOpen, setIsStoreManagerOpen] = useState(false);
   const form = useForm<ShiftFormValues>({
     resolver: zodResolver(shiftFormSchema),
@@ -60,8 +63,11 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
       breakDuration: 0,
       inCharge: false,
       storeId: '',
+      isFuelClaim: false,
     }
   });
+
+  const selectedStoreId = form.watch('storeId');
 
   useEffect(() => {
     form.reset({
@@ -71,8 +77,16 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
       breakDuration: 0,
       inCharge: false,
       storeId: '',
+      isFuelClaim: false,
     });
   }, [viewDate, form]);
+
+  useEffect(() => {
+    // If the selected store is the home store, you can't claim fuel.
+    if (selectedStoreId === homeStoreId) {
+        form.setValue('isFuelClaim', false);
+    }
+  }, [selectedStoreId, homeStoreId, form]);
 
   function onSubmit(data: ShiftFormValues) {
     onAddShift({
@@ -81,9 +95,10 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
         endTime: data.endTime,
         breakDuration: data.breakDuration,
         inCharge: data.inCharge,
-        storeId: data.storeId || undefined
+        storeId: data.storeId || undefined,
+        isFuelClaim: data.isFuelClaim
     });
-    form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0, inCharge: false, storeId: undefined });
+    form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0, inCharge: false, storeId: undefined, isFuelClaim: false });
   }
 
   const getCalendarDisabledDays = (date: Date) => {
@@ -115,8 +130,10 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
         open={isStoreManagerOpen}
         onOpenChange={setIsStoreManagerOpen}
         stores={stores}
+        homeStoreId={homeStoreId}
         onAddStore={onAddStore}
         onDeleteStore={onDeleteStore}
+        onSetHomeStore={onSetHomeStore}
       />
       <CardHeader>
         <CardTitle className="font-headline">Log a New Shift</CardTitle>
@@ -259,28 +276,54 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="inCharge"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                  <div className="space-y-0.5">
-                    <FormLabel>
-                      In Charge Shift
-                    </FormLabel>
-                    <FormDescription>
-                      Adds a £0.25/hr bonus.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="inCharge"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>
+                        In Charge
+                      </FormLabel>
+                      <FormDescription>
+                        +£0.25/hr
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="isFuelClaim"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"
+                  hidden={!selectedStoreId || selectedStoreId === homeStoreId}>
+                    <div className="space-y-0.5">
+                      <FormLabel>
+                        Claim Fuel
+                      </FormLabel>
+                      <FormDescription>
+                        +£0.30/mile
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={!selectedStoreId || selectedStoreId === homeStoreId}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
             <Button type="submit" className="w-full">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Shift

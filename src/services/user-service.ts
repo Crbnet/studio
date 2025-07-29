@@ -21,6 +21,7 @@ export const getUserData = async (): Promise<UserData | null> => {
       lastPayday: null,
       stores: [],
       shifts: [],
+      homeStoreId: undefined,
     };
     await setDoc(docRef, initialData);
     return initialData;

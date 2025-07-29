@@ -123,11 +123,13 @@ function PaySettings({ payRate, lastPayday, onUpdate }: { payRate: number; lastP
 function ShiftManager({
   shifts = [],
   stores = [],
+  homeStoreId,
   payRate,
   onUpdate
 }: {
   shifts: Shift[];
   stores: Store[];
+  homeStoreId?: string;
   payRate: number;
   onUpdate: (data: Partial<UserData>) => void;
 }) {
@@ -163,8 +165,16 @@ function ShiftManager({
   const handleDeleteStore = (id: string) => {
     const updatedStores = stores.filter(store => store.id !== id);
     const updatedShifts = shifts.map(shift => shift.storeId === id ? { ...shift, storeId: undefined } : shift);
-    onUpdate({ stores: updatedStores, shifts: updatedShifts });
+    let newHomeStoreId = homeStoreId;
+    if (homeStoreId === id) {
+        newHomeStoreId = undefined;
+    }
+    onUpdate({ stores: updatedStores, shifts: updatedShifts, homeStoreId: newHomeStoreId });
   };
+
+  const handleSetHomeStore = (storeId: string) => {
+    onUpdate({ homeStoreId: storeId });
+  }
   
   const isLocked = useMemo(() => {
     const today = startOfDay(new Date());
@@ -222,7 +232,7 @@ function ShiftManager({
         <p className="text-center text-lg font-medium text-muted-foreground">
             {format(weekStart, 'PPP')} &mdash; {format(weekEnd, 'PPP')}
         </p>
-        <SummaryCards shifts={visibleShifts} payRate={payRate} />
+        <SummaryCards shifts={visibleShifts} payRate={payRate} stores={stores} />
       </div>
 
        <div className="lg:col-span-1 space-y-6">
@@ -231,8 +241,10 @@ function ShiftManager({
             isLocked={isLocked}
             viewDate={viewDate}
             stores={stores}
+            homeStoreId={homeStoreId}
             onAddStore={handleAddStore}
             onDeleteStore={handleDeleteStore}
+            onSetHomeStore={handleSetHomeStore}
           />
         </div>
 
@@ -286,6 +298,7 @@ export function Dashboard() {
             <ShiftManager 
                 shifts={userData.shifts} 
                 stores={userData.stores}
+                homeStoreId={userData.homeStoreId}
                 payRate={userData.payRate}
                 onUpdate={handleUpdate} 
             />
@@ -293,5 +306,3 @@ export function Dashboard() {
     </div>
   );
 }
-
-    

@@ -76,7 +76,8 @@ export function AuthForm() {
         payRate: 12.21,
         lastPayday: null,
         stores: [],
-        shifts: []
+        shifts: [],
+        homeStoreId: undefined
       });
 
       toast({ title: "Success", description: "Account created successfully." });

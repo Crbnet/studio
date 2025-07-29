@@ -1,21 +1,24 @@
 "use client";
 
 import { useMemo } from 'react';
-import type { Shift } from '@/types';
+import type { Shift, Store } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PoundSterling, Clock, TrendingUp, BarChart } from 'lucide-react';
+import { PoundSterling, Clock, TrendingUp, BarChart, Fuel } from 'lucide-react';
 
 interface SummaryCardsProps {
   shifts: Shift[];
   payRate: number;
+  stores: Store[];
 }
 
 const IN_CHARGE_BONUS = 0.25;
+const FUEL_RATE_PER_MILE = 0.30;
 
-export function SummaryCards({ shifts, payRate }: SummaryCardsProps) {
-    const { totalHours, grossPay } = useMemo(() => {
+export function SummaryCards({ shifts, payRate, stores }: SummaryCardsProps) {
+    const { totalHours, grossPay, totalFuel, totalPay } = useMemo(() => {
         let totalHours = 0;
         let grossPay = 0;
+        let totalFuel = 0;
 
         shifts.forEach(shift => {
             const start = new Date(`${shift.date}T${shift.startTime}`);
@@ -25,22 +28,28 @@ export function SummaryCards({ shifts, payRate }: SummaryCardsProps) {
             const breakHours = shift.breakDuration / 60;
             const workHours = durationHours - breakHours;
             const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
+            
             totalHours += workHours;
             grossPay += workHours * hourlyRate;
+
+            if (shift.isFuelClaim && shift.storeId) {
+                const store = stores.find(s => s.id === shift.storeId);
+                if (store && store.mileage) {
+                    totalFuel += store.mileage * 2 * FUEL_RATE_PER_MILE;
+                }
+            }
         });
         
-        return { totalHours, grossPay };
-    }, [shifts, payRate]);
+        return { totalHours, grossPay, totalFuel, totalPay: grossPay + totalFuel };
+    }, [shifts, payRate, stores]);
 
-    const avgPayPerShift = shifts.length > 0 ? grossPay / shifts.length : 0;
-    const avgHoursPerShift = shifts.length > 0 ? totalHours / shifts.length : 0;
-
+    const avgPayPerShift = shifts.length > 0 ? totalPay / shifts.length : 0;
 
   const summaryData = [
     { title: 'Weekly Hours', value: totalHours.toFixed(2), icon: Clock, change: 'h' },
     { title: 'Weekly Gross Pay', value: `£${grossPay.toFixed(2)}`, icon: PoundSterling, change: '' },
-    { title: 'Avg Pay/Shift', value: `£${avgPayPerShift.toFixed(2)}`, icon: TrendingUp, change: '' },
-    { title: 'Avg Hours/Shift', value: avgHoursPerShift.toFixed(2), icon: BarChart, change: 'h' },
+    { title: 'Fuel Claim', value: `£${totalFuel.toFixed(2)}`, icon: Fuel, change: '' },
+    { title: 'Total Pay', value: `£${totalPay.toFixed(2)}`, icon: TrendingUp, change: '' },
   ];
   
   return (

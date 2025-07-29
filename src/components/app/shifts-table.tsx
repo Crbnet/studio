@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, FileDown, Bot, Star, AlertCircle, Store as StoreIcon } from 'lucide-react';
+import { Trash2, FileDown, Bot, Star, AlertCircle, Store as StoreIcon, Fuel } from 'lucide-react';
 import { TaxEstimatorDialog } from '@/components/app/tax-estimator-dialog';
 import { useMemo } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
@@ -29,6 +29,7 @@ interface ShiftsTableProps {
 }
 
 const IN_CHARGE_BONUS = 0.25;
+const FUEL_RATE_PER_MILE = 0.30;
 
 export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift, grossPay, isLocked }: ShiftsTableProps) {
   
@@ -47,8 +48,23 @@ export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift,
     return shifts.reduce((total, shift) => total + calculateWorkHours(shift), 0);
   }, [shifts]);
 
+  const totalFuelExpense = useMemo(() => {
+    return shifts.reduce((total, shift) => {
+      if (shift.isFuelClaim && shift.storeId) {
+        const store = getStore(shift.storeId);
+        if (store && store.mileage) {
+          return total + (store.mileage * 2 * FUEL_RATE_PER_MILE);
+        }
+      }
+      return total;
+    }, 0);
+  }, [shifts, stores]);
+
+  const totalPay = grossPay + totalFuelExpense;
+
+
   const exportToCSV = () => {
-    const headers = ['Date', 'Store Name', 'Store Number', 'Start Time', 'End Time', 'Break (min)', 'In Charge', 'Hours Worked', 'Gross Pay (£)'];
+    const headers = ['Date', 'Store Name', 'Store Number', 'Start Time', 'End Time', 'Break (min)', 'In Charge', 'Hours Worked', 'Gross Pay (£)', 'Fuel Claim', 'Fuel Expense (£)', 'Total Pay (£)'];
     const csvRows = allShifts
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(shift => {
@@ -56,6 +72,11 @@ export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift,
         const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
         const pay = hours * hourlyRate;
         const store = getStore(shift.storeId);
+        let fuelExpense = 0;
+        if (shift.isFuelClaim && store?.mileage) {
+          fuelExpense = store.mileage * 2 * FUEL_RATE_PER_MILE;
+        }
+
         return [
           shift.date,
           store?.name || 'N/A',
@@ -65,7 +86,10 @@ export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift,
           shift.breakDuration,
           shift.inCharge ? 'Yes' : 'No',
           hours.toFixed(2),
-          pay.toFixed(2)
+          pay.toFixed(2),
+          shift.isFuelClaim ? 'Yes' : 'No',
+          fuelExpense.toFixed(2),
+          (pay + fuelExpense).toFixed(2),
         ].join(',');
     });
 
@@ -113,11 +137,10 @@ export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift,
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead className="hidden sm:table-cell">Store</TableHead>
-                <TableHead className="hidden sm:table-cell">Start</TableHead>
-                <TableHead className="hidden sm:table-cell">End</TableHead>
-                <TableHead className="hidden md:table-cell">Break</TableHead>
                 <TableHead>Hours</TableHead>
                 <TableHead>Pay</TableHead>
+                <TableHead className="hidden md:table-cell">Fuel</TableHead>
+                <TableHead>Total</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -127,22 +150,23 @@ export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift,
                 const hourlyRate = payRate + (shift.inCharge ? IN_CHARGE_BONUS : 0);
                 const shiftPay = workHours * hourlyRate;
                 const store = getStore(shift.storeId);
+                let fuelExpense = 0;
+                if (shift.isFuelClaim && store?.mileage) {
+                    fuelExpense = store.mileage * 2 * FUEL_RATE_PER_MILE;
+                }
+                const totalPay = shiftPay + fuelExpense;
+
                 return (
                   <TableRow key={shift.id}>
                     <TableCell>
                       <div className="font-medium">{new Date(shift.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground sm:hidden">
-                        {store ? <> <StoreIcon className="h-3 w-3" /> #{store.number} </>: ''}
-                      </div>
+                      <div className="text-sm text-muted-foreground sm:hidden">{shift.startTime} - {shift.endTime}</div>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <div className="flex items-center gap-2">
                          {store ? <> <StoreIcon className="h-4 w-4 text-muted-foreground" /> <div><div className="font-medium">{store.name}</div><div className="text-xs text-muted-foreground">#{store.number}</div></div> </> : 'N/A'}
                       </div>
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell">{shift.startTime}</TableCell>
-                    <TableCell className="hidden sm:table-cell">{shift.endTime}</TableCell>
-                    <TableCell className="hidden md:table-cell">{shift.breakDuration} min</TableCell>
                     <TableCell>
                         <div className="flex items-center gap-1">
                           {workHours.toFixed(2)}
@@ -150,6 +174,10 @@ export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift,
                         </div>
                     </TableCell>
                     <TableCell>£{shiftPay.toFixed(2)}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {shift.isFuelClaim ? `£${fuelExpense.toFixed(2)}` : '-'}
+                    </TableCell>
+                    <TableCell>£{totalPay.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => onDeleteShift(shift.id)} disabled={isLocked}>
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -162,13 +190,13 @@ export function ShiftsTable({ shifts, allShifts, stores, payRate, onDeleteShift,
             {shifts.length > 0 && (
                 <TableFooter>
                     <TableRow>
-                        <TableCell colSpan={4} className="hidden md:table-cell">Total</TableCell>
+                        <TableCell colSpan={2} className="hidden md:table-cell">Total</TableCell>
                         <TableCell className="md:hidden" colSpan={1}>Total</TableCell>
-                        <TableCell className="hidden sm:table-cell"></TableCell>
-                        <TableCell className="hidden sm:table-cell"></TableCell>
                         <TableCell className="hidden sm:table-cell"></TableCell>
                         <TableCell>{totalHours.toFixed(2)}</TableCell>
                         <TableCell>£{grossPay.toFixed(2)}</TableCell>
+                        <TableCell className="hidden md:table-cell">£{totalFuelExpense.toFixed(2)}</TableCell>
+                        <TableCell>£{totalPay.toFixed(2)}</TableCell>
                         <TableCell></TableCell>
                     </TableRow>
                 </TableFooter>
