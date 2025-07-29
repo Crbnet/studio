@@ -105,9 +105,24 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
     const today = startOfDay(new Date());
     const weekStartsOn = 1; // Monday
 
-    // Disable dates in any week before the current week
+    const viewingWeekStart = startOfWeek(date, { weekStartsOn });
     const currentWeekStart = startOfWeek(today, { weekStartsOn });
-    return isBefore(date, currentWeekStart);
+    
+    // Allow previous week editing only on Monday
+    const dayOfWeek = getDay(today); // 0 = Sun, 1 = Mon
+    if (dayOfWeek === 1) { 
+        const lastWeekStart = subWeeks(currentWeekStart, 1);
+        if (isBefore(date, lastWeekStart)) {
+            return true;
+        }
+    } else {
+        // From Tuesday onwards, lock all previous days
+        if (isBefore(date, currentWeekStart)) {
+            return true;
+        }
+    }
+    
+    return false;
   };
 
   return (

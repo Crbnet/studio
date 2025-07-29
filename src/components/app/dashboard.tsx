@@ -202,10 +202,17 @@ function ShiftManager({
   
   const isLocked = useMemo(() => {
     const today = startOfDay(new Date());
-    
-    // Previous weeks are locked
-    const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
-    const viewingWeekStart = startOfWeek(viewDate, { weekStartsOn: 1 });
+    const weekStartsOn = 1; // Monday
+
+    const viewingWeekStart = startOfWeek(viewDate, { weekStartsOn });
+    const currentWeekStart = startOfWeek(today, { weekStartsOn });
+
+    // Lock past weeks, but allow previous week editing on Monday
+    const dayOfWeek = getDay(today);
+    if (dayOfWeek === 1) { // It's Monday
+        const lastWeekStart = subWeeks(currentWeekStart, 1);
+        return isBefore(viewingWeekStart, lastWeekStart);
+    }
 
     return isBefore(viewingWeekStart, currentWeekStart);
   }, [viewDate]);
