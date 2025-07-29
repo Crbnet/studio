@@ -5,7 +5,7 @@ import { AuthProvider } from '@/hooks/use-auth';
 import { UserDataProvider } from '@/hooks/use-user-data';
 
 export const metadata: Metadata = {
-  title: 'WageWise',
+  title: 'Crbnet Calculator',
   description: 'A retail shift and pay management app to automatically calculate earnings and estimate tax.',
 };
 

@@ -46,7 +46,7 @@ export function Header() {
       <div className="container mx-auto flex items-center justify-between gap-4 py-4 px-4 md:px-6">
         <Link href="/" className="flex items-center gap-4">
           <Wallet className="h-8 w-8" />
-          <h1 className="text-2xl md:text-3xl font-headline font-bold tracking-tight">WageWise</h1>
+          <h1 className="text-2xl md:text-3xl font-headline font-bold tracking-tight">Crbnet Calculator</h1>
         </Link>
         <nav className="flex items-center gap-4">
           <Link href="/history" className="hidden md:flex items-center gap-2 text-sm font-medium hover:underline">
