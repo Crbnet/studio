@@ -74,12 +74,12 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
     if (!user) {
       throw new Error("No user is signed in to update data.");
     }
-
+    
     const hasDataUpdates = Object.keys(data).length > 0;
     const hasShiftUpdates = newShifts.length > 0 || deletedShiftIds.length > 0;
 
     if (!hasDataUpdates && !hasShiftUpdates) {
-      return; // Nothing to do
+      return; 
     }
     
     const batch = writeBatch(db);
