@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, CalendarDays, PoundSterling, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, isThisWeek, parseISO, getDay, isSameWeek, subWeeks } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, parseISO, getDay, isSameWeek, subWeeks, isBefore, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
@@ -167,18 +167,25 @@ function ShiftManager({
   };
   
   const isLocked = useMemo(() => {
-    const today = new Date();
-    const isCurrentWeek = isThisWeek(viewDate, { weekStartsOn });
-    
-    const isMonday = getDay(today) === 1;
-    const isPreviousWeek = isSameWeek(viewDate, subWeeks(today, 1), { weekStartsOn });
+    const today = startOfDay(new Date());
+    const weekStartForView = startOfWeek(viewDate, { weekStartsOn });
 
-    if (isMonday && isPreviousWeek) {
-      return false;
+    // Allow editing for the week that contains today or any future week
+    if (!isBefore(weekStartForView, today)) {
+        return false;
     }
 
-    return !isCurrentWeek;
+    // Special case for Monday: allow editing the previous week
+    const isMonday = getDay(today) === 1;
+    const previousWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn });
+    if (isMonday && isSameWeek(viewDate, previousWeekStart, { weekStartsOn })) {
+        return false;
+    }
+
+    // Lock all other past weeks
+    return true;
   }, [viewDate]);
+
 
   const grossPayForWeek = useMemo(() => {
     return visibleShifts.reduce((total, shift) => {

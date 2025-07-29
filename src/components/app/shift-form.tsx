@@ -22,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarIcon, Clock, Coffee, PlusCircle, AlertCircle, Store as StoreIcon, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, startOfWeek, endOfWeek, isThisWeek, getDay, isSameWeek, subWeeks, addDays, subDays } from 'date-fns';
+import { format, startOfWeek, isSameWeek, subWeeks, getDay, isBefore, startOfDay } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 import { StoreManager } from './store-manager';
@@ -89,21 +89,24 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
   const weekStartsOn = 1; // Monday
 
   const getCalendarDisabledDays = (date: Date) => {
-    const today = new Date();
-    const isCurrentWeek = isThisWeek(date, { weekStartsOn });
-    const isMonday = getDay(today) === 1;
-    const isPreviousWeek = isSameWeek(date, subWeeks(today, 1), { weekStartsOn });
-    const isFutureDate = date > addDays(today, 1);
+    const today = startOfDay(new Date());
+    const dateToCompare = startOfDay(date);
+    const weekStartForDate = startOfWeek(dateToCompare, { weekStartsOn });
 
-    if (isFutureDate) return true;
-
-    if (isMonday && (isPreviousWeek || isCurrentWeek)) {
-      return false; // Unlock prev week on Monday
+    // Allow current and future weeks
+    if (!isBefore(weekStartForDate, today)) {
+        return false;
     }
 
-    if(isCurrentWeek) return false;
+    // Special case for Monday: allow editing the previous week
+    const isMonday = getDay(today) === 1;
+    const previousWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn });
+    if (isMonday && isSameWeek(dateToCompare, previousWeekStart, { weekStartsOn })) {
+        return false;
+    }
 
-    return true; // Lock all other past dates
+    // Lock all other past dates
+    return true;
   };
 
   return (
@@ -125,7 +128,7 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
             <AlertCircle className="h-4 w-4 !text-amber-800" />
             <AlertTitle className="font-semibold">Editing Locked</AlertTitle>
             <AlertDescription className="text-amber-700">
-              You can only add shifts for the current week (and the previous week on Mondays).
+              You can only add shifts for the current and future weeks (and the previous week on Mondays).
             </AlertDescription>
           </Alert>
         )}
