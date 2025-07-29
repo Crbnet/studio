@@ -101,30 +101,6 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
     form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0, inCharge: false, isFuelClaim: false });
   }
 
-  const getCalendarDisabledDays = (date: Date) => {
-    const today = startOfDay(new Date());
-    const weekStartsOn = 1; // Monday
-
-    const viewingWeekStart = startOfWeek(date, { weekStartsOn });
-    const currentWeekStart = startOfWeek(today, { weekStartsOn });
-    
-    // Allow previous week editing only on Monday
-    const dayOfWeek = getDay(today); // 0 = Sun, 1 = Mon
-    if (dayOfWeek === 1) { 
-        const lastWeekStart = subWeeks(currentWeekStart, 1);
-        if (isBefore(date, lastWeekStart)) {
-            return true;
-        }
-    } else {
-        // From Tuesday onwards, lock all previous days
-        if (isBefore(date, currentWeekStart)) {
-            return true;
-        }
-    }
-    
-    return false;
-  };
-
   return (
     <Card>
       <StoreManager
@@ -141,15 +117,6 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
         <CardDesc>Enter the details for your work shift.</CardDesc>
       </CardHeader>
       <CardContent>
-        {isLocked && (
-          <Alert variant="default" className="mb-4 bg-amber-50 border-amber-200 text-amber-800">
-            <AlertCircle className="h-4 w-4 !text-amber-800" />
-            <AlertTitle className="font-semibold">Editing Locked</AlertTitle>
-            <AlertDescription className="text-amber-700">
-              You can only add shifts for the current week and future weeks.
-            </AlertDescription>
-          </Alert>
-        )}
         <fieldset disabled={isLocked} className="space-y-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -185,7 +152,6 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
                         selected={field.value}
                         onSelect={field.onChange}
                         weekStartsOn={1}
-                        disabled={getCalendarDisabledDays}
                         defaultMonth={viewDate}
                         initialFocus
                       />

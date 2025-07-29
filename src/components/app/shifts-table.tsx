@@ -85,15 +85,6 @@ export function ShiftsTable({ shifts, isLoading, stores, payRate, onDeleteShift,
         </div>
       </CardHeader>
       <CardContent>
-        {isLocked && !isLoading && (
-            <Alert variant="default" className="mb-4 bg-amber-50 border-amber-200 text-amber-800">
-                <AlertCircle className="h-4 w-4 !text-amber-800" />
-                <AlertTitle className="font-semibold">Week Locked</AlertTitle>
-                <AlertDescription className="text-amber-700">
-                You cannot add or delete shifts for this week.
-                </AlertDescription>
-            </Alert>
-        )}
         <div className="border rounded-md min-h-[200px]">
           <Table>
             {shifts.length === 0 && !isLoading && <TableCaption>No shifts logged for this week.</TableCaption>}

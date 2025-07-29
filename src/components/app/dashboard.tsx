@@ -208,28 +208,6 @@ function ShiftManager({
   const handleSetHomeStore = (storeId: string) => {
     onUpdate({ homeStoreId: storeId });
   }
-  
-  const isLocked = useMemo(() => {
-    const today = startOfDay(new Date());
-    const weekStartsOn = 1; // Monday
-
-    // This is the start of the week being viewed
-    const viewingWeekStart = startOfWeek(viewDate, { weekStartsOn });
-    
-    // This is the start of the current calendar week
-    const currentWeekStart = startOfWeek(today, { weekStartsOn });
-    
-    // Allow editing of the previous week only on Monday
-    if (getDay(today) === 1) { // It's Monday
-      const lastWeekStart = subWeeks(currentWeekStart, 1);
-      // Lock if viewing week is before last week
-      return isBefore(viewingWeekStart, lastWeekStart);
-    }
-    
-    // From Tuesday onwards, lock if viewing week is before the current week
-    return isBefore(viewingWeekStart, currentWeekStart);
-  }, [viewDate]);
-
 
   const grossPayForWeek = useMemo(() => {
     return shiftsForWeek.reduce((total, shift) => {
@@ -269,7 +247,7 @@ function ShiftManager({
        <div className="lg:col-span-1 space-y-6">
           <ShiftForm
             onAddShift={handleAddShift}
-            isLocked={isLocked}
+            isLocked={false}
             viewDate={viewDate}
             stores={stores}
             homeStoreId={homeStoreId || undefined}
@@ -287,7 +265,7 @@ function ShiftManager({
             payRate={payRate} 
             onDeleteShift={handleDeleteShift} 
             grossPay={grossPayForWeek} 
-            isLocked={isLocked} 
+            isLocked={false} 
           />
         </div>
     </div>
@@ -340,5 +318,3 @@ export function Dashboard() {
     </div>
   );
 }
-
-    
