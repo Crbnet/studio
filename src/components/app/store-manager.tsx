@@ -40,7 +40,7 @@ interface StoreManagerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   stores: Store[];
-  homeStoreId?: string;
+  homeStoreId?: string | null;
   onAddStore: (store: Omit<Store, 'id'>) => void;
   onDeleteStore: (id: string) => void;
   onSetHomeStore: (id: string) => void;
@@ -127,7 +127,7 @@ export function StoreManager({ open, onOpenChange, stores, homeStoreId, onAddSto
             <p className="text-xs text-muted-foreground">Select your primary 'home' store.</p>
             <ScrollArea className="h-48 rounded-md border">
               <div className="p-4">
-                <RadioGroup value={homeStoreId} onValueChange={onSetHomeStore}>
+                <RadioGroup value={homeStoreId || ''} onValueChange={onSetHomeStore}>
                     {stores.length > 0 ? (
                     stores.map(store => (
                         <div key={store.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">

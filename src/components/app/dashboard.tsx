@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, CalendarDays, PoundSterling, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, parseISO, getDay, startOfDay, subWeeks, addWeeks, isAfter } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, parseISO, getDay, startOfDay, subWeeks, addWeeks, isAfter, isBefore } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
@@ -132,7 +132,7 @@ function ShiftManager({
   stores: Store[];
   homeStoreId?: string | null;
   payRate: number;
-  onUpdate: (data: Partial<UserData>, newShifts?: Shift[]) => void;
+  onUpdate: (data: Partial<UserData>, newShifts?: Shift[], deletedShiftIds?: string[]) => void;
 }) {
   const { user } = useAuth();
   const [viewDate, setViewDate] = useState(new Date());
@@ -171,24 +171,15 @@ function ShiftManager({
 
   const handleAddShift = (newShift: Omit<Shift, 'id'>) => {
     const shiftWithId = { ...newShift, id: crypto.randomUUID() };
-    const updatedShifts = [...shifts, shiftWithId];
-    setShifts(updatedShifts);
-    onUpdate({}, updatedShifts); // Pass shifts to be written in a batch
+    const updatedShifts = [...shifts, shiftWithId].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    setShifts(updatedShifts); // Optimistic update
+    onUpdate({}, [shiftWithId]); // Pass shift to be written in a batch
   };
 
   const handleDeleteShift = (id: string) => {
     const updatedShifts = shifts.filter(shift => shift.id !== id);
-    setShifts(updatedShifts); // Update UI immediately
-    if (user) {
-        const batch = writeBatch(db);
-        const shiftDocRef = doc(db, `users/${user.uid}/shifts/${id}`);
-        batch.delete(shiftDocRef);
-        batch.commit().catch(err => {
-            console.error(err);
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete shift.' });
-            fetchShiftsForWeek(); // Re-fetch to revert optimistic update
-        });
-    }
+    setShifts(updatedShifts); // Optimistic update
+    onUpdate({}, [], [id]); // Pass deleted shift ID
   };
   
   const handleAddStore = (newStore: Omit<Store, 'id'>) => {
@@ -198,13 +189,10 @@ function ShiftManager({
 
   const handleDeleteStore = (id: string) => {
     const updatedStores = stores.filter(store => store.id !== id);
-    let newHomeStoreId = homeStoreId;
+    let newHomeStoreId: string | null = homeStoreId || null;
     if (homeStoreId === id) {
         newHomeStoreId = null;
     }
-    // Note: Deleting associated shifts is complex. For now, we just update the stores.
-    // A more robust solution might involve a cloud function to clean up shifts
-    // when a store is deleted, or flagging shifts with a missing store.
     onUpdate({ stores: updatedStores, homeStoreId: newHomeStoreId });
   };
 
@@ -214,27 +202,12 @@ function ShiftManager({
   
   const isLocked = useMemo(() => {
     const today = startOfDay(new Date());
-    const weekStartsOn = 1; // Monday
     
-    // Allow current week and next week
-    const currentWeekStart = startOfWeek(today, { weekStartsOn });
-    const nextWeekStart = startOfWeek(addWeeks(today, 1), { weekStartsOn });
-    const viewingWeekStart = startOfWeek(viewDate, { weekStartsOn });
+    // Previous weeks are locked
+    const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
+    const viewingWeekStart = startOfWeek(viewDate, { weekStartsOn: 1 });
 
-    if (viewingWeekStart.getTime() === currentWeekStart.getTime() || viewingWeekStart.getTime() === nextWeekStart.getTime()) {
-      return false;
-    }
-    
-    // Allow previous week on Monday
-    const isMonday = getDay(today) === 1;
-    const previousWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn });
-    if (isMonday && viewingWeekStart.getTime() === previousWeekStart.getTime()) {
-      return false;
-    }
-
-    // Lock all other weeks (past and future beyond next week)
-    const nextWeekEnd = endOfWeek(addWeeks(today, 1), { weekStartsOn });
-    return isBefore(viewingWeekStart, previousWeekStart) || isAfter(viewingWeekStart, nextWeekEnd);
+    return isBefore(viewingWeekStart, currentWeekStart);
   }, [viewDate]);
 
 
@@ -307,10 +280,10 @@ export function Dashboard() {
   const { userData, loading, updateUserData } = useUserData();
   const { toast } = useToast();
   
-  const handleUpdate = useCallback(async (data: Partial<UserData>, newShifts: Shift[] = []) => {
+  const handleUpdate = useCallback(async (data: Partial<UserData>, newShifts: Shift[] = [], deletedShiftIds: string[] = []) => {
     if (!user) return;
     try {
-      await updateUserData(data, newShifts);
+      await updateUserData(data, newShifts, deletedShiftIds);
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to save changes.' });
       console.error(error);

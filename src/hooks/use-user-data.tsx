@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { doc, onSnapshot, updateDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, setDoc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from './use-auth';
 import type { UserData, Shift } from '@/types';
@@ -10,7 +10,7 @@ import { useToast } from './use-toast';
 interface UserDataContextType {
   userData: Omit<UserData, 'shifts'> | null;
   loading: boolean;
-  updateUserData: (data: Partial<Omit<UserData, 'shifts'>>, newShifts?: Shift[]) => Promise<void>;
+  updateUserData: (data: Partial<Omit<UserData, 'shifts'>>, newShifts?: Shift[], deletedShiftIds?: string[]) => Promise<void>;
 }
 
 const UserDataContext = createContext<UserDataContextType | undefined>(undefined);
@@ -65,7 +65,11 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, toast]);
 
-  const updateUserData = useCallback(async (data: Partial<Omit<UserData, 'shifts'>>, newShifts: Shift[] = []) => {
+  const updateUserData = useCallback(async (
+    data: Partial<Omit<UserData, 'shifts'>>, 
+    newShifts: Shift[] = [], 
+    deletedShiftIds: string[] = []
+  ) => {
     if (!user) {
       throw new Error("No user is signed in to update data.");
     }
@@ -73,8 +77,18 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
     const batch = writeBatch(db);
     const userDocRef = doc(db, "users", user.uid);
     
-    if (Object.keys(data).length > 0) {
-      batch.update(userDocRef, data);
+    // Note: Firestore does not allow 'undefined' values.
+    // We can clean the data object before sending it.
+    const cleanData: { [key: string]: any } = {};
+    Object.keys(data).forEach(key => {
+        const typedKey = key as keyof typeof data;
+        if (data[typedKey] !== undefined) {
+            cleanData[key] = data[typedKey];
+        }
+    });
+
+    if (Object.keys(cleanData).length > 0) {
+      batch.update(userDocRef, cleanData);
     }
     
     if (newShifts.length > 0) {
@@ -82,6 +96,13 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
         const shiftDocRef = doc(db, `users/${user.uid}/shifts`, shift.id);
         batch.set(shiftDocRef, shift);
       });
+    }
+
+    if (deletedShiftIds.length > 0) {
+        deletedShiftIds.forEach(id => {
+            const shiftDocRef = doc(db, `users/${user.uid}/shifts`, id);
+            batch.delete(shiftDocRef);
+        });
     }
 
     await batch.commit();

@@ -103,24 +103,11 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
 
   const getCalendarDisabledDays = (date: Date) => {
     const today = startOfDay(new Date());
-    
-    // Disable dates more than one week in the future
-    const nextWeekEnd = endOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
-    if (isAfter(date, nextWeekEnd)) {
-      return true;
-    }
+    const weekStartsOn = 1; // Monday
 
-    // Allow current week and next week, so anything before current week start is disabled,
-    // with an exception for Monday allowing previous week.
-    const isMonday = getDay(today) === 1;
-    const previousWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn: 1 });
-    
-    if (isMonday) {
-      return isBefore(date, previousWeekStart);
-    } else {
-      const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
-      return isBefore(date, currentWeekStart);
-    }
+    // Disable dates in any week before the current week
+    const currentWeekStart = startOfWeek(today, { weekStartsOn });
+    return isBefore(date, currentWeekStart);
   };
 
   return (
@@ -144,7 +131,7 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
             <AlertCircle className="h-4 w-4 !text-amber-800" />
             <AlertTitle className="font-semibold">Editing Locked</AlertTitle>
             <AlertDescription className="text-amber-700">
-              You can only add shifts for the current and next week (and the previous week on Mondays).
+              You can only add shifts for the current week and future weeks.
             </AlertDescription>
           </Alert>
         )}
@@ -236,7 +223,7 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
                     <div className="flex items-center gap-2">
                       <div className="relative flex-grow">
                          <StoreIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ''}>
                           <FormControl>
                             <SelectTrigger className="w-full pl-8">
                                 <SelectValue placeholder="Select a store" />
