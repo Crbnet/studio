@@ -22,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarIcon, Clock, Coffee, PlusCircle, AlertCircle, Store as StoreIcon, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, startOfWeek, subWeeks, getDay, isBefore, startOfDay } from 'date-fns';
+import { format, startOfWeek, subWeeks, getDay, isBefore, startOfDay, addWeeks, endOfWeek, isAfter } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertTitle, AlertDescription } from '../ui/alert';
 import { StoreManager } from './store-manager';
@@ -89,23 +89,24 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
   const getCalendarDisabledDays = (date: Date) => {
     const today = startOfDay(new Date());
     const weekStartsOn = 1; // Monday
-    const currentWeekStart = startOfWeek(today, { weekStartsOn });
-    const dateWeekStart = startOfWeek(startOfDay(date), { weekStartsOn });
-
-    // Allow current and future weeks
-    if (dateWeekStart >= currentWeekStart) {
-      return false;
+    const nextWeekEnd = endOfWeek(addWeeks(today, 1), { weekStartsOn });
+    
+    // Disable dates more than one week in the future
+    if (isAfter(date, nextWeekEnd)) {
+      return true;
     }
 
-    // Special case for Monday: allow the previous week
+    // Handle past dates
     const isMonday = getDay(today) === 1;
     const previousWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn });
-    if (isMonday && dateWeekStart.getTime() === previousWeekStart.getTime()) {
-      return false;
+
+    // If it's Monday, allow previous week. Otherwise, lock all past dates before previous week start.
+    if (isMonday) {
+      const twoWeeksAgoStart = startOfWeek(subWeeks(today, 2), { weekStartsOn });
+      return isBefore(date, twoWeeksAgoStart);
+    } else {
+      return isBefore(date, previousWeekStart);
     }
-    
-    // Lock all other past dates
-    return isBefore(startOfDay(date), previousWeekStart);
   };
 
   return (
@@ -127,7 +128,7 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
             <AlertCircle className="h-4 w-4 !text-amber-800" />
             <AlertTitle className="font-semibold">Editing Locked</AlertTitle>
             <AlertDescription className="text-amber-700">
-              You can only add shifts for the current and future weeks (and the previous week on Mondays).
+              You can only add shifts for the current and next week (and the previous week on Mondays).
             </AlertDescription>
           </Alert>
         )}
@@ -226,6 +227,7 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <SelectItem value="">- No Store -</SelectItem>
                             {stores.map(store => (
                               <SelectItem key={store.id} value={store.id}>
                                 {store.name} ({store.number})
@@ -292,3 +294,5 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
     </Card>
   );
 }
+
+    

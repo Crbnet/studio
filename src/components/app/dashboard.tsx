@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, CalendarDays, PoundSterling, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, parseISO, getDay, isSameWeek, subWeeks, isBefore, startOfDay } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, parseISO, getDay, startOfDay, subWeeks, addWeeks, isAfter } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
@@ -168,22 +168,24 @@ function ShiftManager({
   
   const isLocked = useMemo(() => {
     const today = startOfDay(new Date());
+    const weekStartsOn = 1; // Monday
     const currentWeekStart = startOfWeek(today, { weekStartsOn });
     const viewingWeekStart = startOfWeek(viewDate, { weekStartsOn });
+    const nextWeekStart = startOfWeek(addWeeks(today, 1), { weekStartsOn });
 
-    // Allow editing for the week that contains today or any future week
-    if (viewingWeekStart >= currentWeekStart) {
-        return false;
+    // Allow current week and next week
+    if (viewingWeekStart.getTime() === currentWeekStart.getTime() || viewingWeekStart.getTime() === nextWeekStart.getTime()) {
+      return false;
     }
-
+    
     // Special case for Monday: allow editing the previous week
     const isMonday = getDay(today) === 1;
     const previousWeekStart = startOfWeek(subWeeks(today, 1), { weekStartsOn });
     if (isMonday && viewingWeekStart.getTime() === previousWeekStart.getTime()) {
-        return false;
+      return false;
     }
 
-    // Lock all other past weeks
+    // Lock all other weeks (past and future beyond next week)
     return true;
   }, [viewDate]);
 
@@ -291,3 +293,5 @@ export function Dashboard() {
     </div>
   );
 }
+
+    
