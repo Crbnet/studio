@@ -1,40 +1,40 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Shift, Store } from '@/types';
+import type { Shift, Store, UserData } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { startOfWeek, parseISO, format } from 'date-fns';
 import { Button } from '../ui/button';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { getUserData } from '@/services/user-service';
+import { useToast } from '@/hooks/use-toast';
 
 const IN_CHARGE_BONUS = 0.25;
 
 export function HistoryPage() {
-    const [allShifts, setAllShifts] = useState<Shift[]>([]);
-    const [stores, setStores] = useState<Store[]>([]);
-    const [payRate, setPayRate] = useState<number>(12.21);
+    const [userData, setUserData] = useState<UserData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const { toast } = useToast();
+
+    const { shifts: allShifts = [], stores = [], payRate = 12.21 } = userData || {};
 
     useEffect(() => {
-        try {
-            const storedShifts = localStorage.getItem('shifts');
-            const storedPayRate = localStorage.getItem('payRate');
-            const storedStores = localStorage.getItem('stores');
-            if (storedShifts) {
-                setAllShifts(JSON.parse(storedShifts));
-            }
-            if (storedPayRate) {
-                setPayRate(JSON.parse(storedPayRate));
-            }
-            if (storedStores) {
-                setStores(JSON.parse(storedStores));
-            }
-        } catch (error) {
-            console.error("Failed to parse from localStorage", error);
-        }
-    }, []);
+        const fetchData = async () => {
+          try {
+            const data = await getUserData();
+            setUserData(data);
+          } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to load user data.' });
+            console.error(error);
+          } finally {
+            setLoading(false);
+          }
+        };
+        fetchData();
+      }, [toast]);
 
     const groupedShifts = useMemo(() => {
         const groups: { [weekStart: string]: Shift[] } = {};
@@ -61,6 +61,10 @@ export function HistoryPage() {
     };
     
     const getStore = (storeId?: string) => stores.find(s => s.id === storeId);
+    
+    if (loading) {
+        return <div className="flex justify-center items-center h-[calc(100vh-200px)]"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    }
 
     return (
         <Card>
@@ -141,7 +145,7 @@ export function HistoryPage() {
                         })}
                     </Accordion>
                 ) : (
-                    <p className="text-center text-muted-foreground">No shifts have been logged yet.</p>
+                    <p className="text-center text-muted-foreground py-12">No shifts have been logged yet.</p>
                 )}
             </CardContent>
         </Card>

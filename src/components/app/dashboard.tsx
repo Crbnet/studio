@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Shift, Store } from '@/types';
+import type { Shift, Store, UserData } from '@/types';
 import { ShiftForm } from '@/components/app/shift-form';
 import { ShiftsTable } from '@/components/app/shifts-table';
 import { SummaryCards } from '@/components/app/summary-cards';
@@ -9,91 +9,81 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, CalendarDays, PoundSterling, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, CalendarDays, PoundSterling, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, isThisWeek } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, isThisWeek, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { getUserData, updateUserData } from '@/services/user-service';
+import { useToast } from '@/hooks/use-toast';
 
 const IN_CHARGE_BONUS = 0.25;
 
 export function Dashboard() {
-  const [shifts, setShifts] = useState<Shift[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
-  const [payRate, setPayRate] = useState<number>(12.21);
-  const [lastPayday, setLastPayday] = useState<Date | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [viewDate, setViewDate] = useState(new Date());
+  const { toast } = useToast();
+
+  const { shifts = [], stores = [], payRate = 12.21, lastPayday = null } = userData || {};
 
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getUserData();
+        setUserData(data);
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to load user data.' });
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [toast]);
+  
+  const handleUpdate = async (data: Partial<UserData>) => {
     try {
-      const storedShifts = localStorage.getItem('shifts');
-      const storedPayRate = localStorage.getItem('payRate');
-      const storedLastPayday = localStorage.getItem('lastPayday');
-      const storedStores = localStorage.getItem('stores');
-      if (storedShifts) {
-        setShifts(JSON.parse(storedShifts));
-      }
-      if (storedPayRate) {
-        setPayRate(JSON.parse(storedPayRate));
-      }
-      if (storedLastPayday) {
-        setLastPayday(new Date(JSON.parse(storedLastPayday)));
-      }
-      if (storedStores) {
-        setStores(JSON.parse(storedStores));
-      }
+      await updateUserData(data);
+      setUserData(prev => prev ? { ...prev, ...data } : null);
     } catch (error) {
-      console.error("Failed to parse from localStorage", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to save changes.' });
+      console.error(error);
     }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('shifts', JSON.stringify(shifts));
-  }, [shifts]);
-
-  useEffect(() => {
-    localStorage.setItem('stores', JSON.stringify(stores));
-  }, [stores]);
-
-  useEffect(() => {
-    localStorage.setItem('payRate', JSON.stringify(payRate));
-  }, [payRate]);
-
-  useEffect(() => {
-    if (lastPayday) {
-      localStorage.setItem('lastPayday', JSON.stringify(lastPayday));
-    }
-  }, [lastPayday]);
+  };
 
   const handleAddShift = (newShift: Omit<Shift, 'id'>) => {
-    setShifts(prev => [...prev, { ...newShift, id: crypto.randomUUID() }].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    const updatedShifts = [...shifts, { ...newShift, id: crypto.randomUUID() }];
+    handleUpdate({ shifts: updatedShifts });
   };
 
   const handleDeleteShift = (id: string) => {
-    setShifts(prev => prev.filter(shift => shift.id !== id));
+    const updatedShifts = shifts.filter(shift => shift.id !== id);
+    handleUpdate({ shifts: updatedShifts });
   };
   
   const handleAddStore = (newStore: Omit<Store, 'id'>) => {
-    setStores(prev => [...prev, { ...newStore, id: crypto.randomUUID() }].sort((a,b) => a.name.localeCompare(b.name)));
+    const updatedStores = [...stores, { ...newStore, id: crypto.randomUUID() }];
+    handleUpdate({ stores: updatedStores });
   };
 
   const handleDeleteStore = (id: string) => {
-    setStores(prev => prev.filter(store => store.id !== id));
-    // Also remove this storeId from any shifts that have it
-    setShifts(prev => prev.map(shift => shift.storeId === id ? { ...shift, storeId: undefined } : shift));
+    const updatedStores = stores.filter(store => store.id !== id);
+    const updatedShifts = shifts.map(shift => shift.storeId === id ? { ...shift, storeId: undefined } : shift);
+    handleUpdate({ stores: updatedStores, shifts: updatedShifts });
   };
 
   const handleSetPayRate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const newRate = parseFloat(new FormData(e.currentTarget).get('payRate') as string);
     if (!isNaN(newRate)) {
-      setPayRate(newRate);
+      handleUpdate({ payRate: newRate });
     }
   };
 
   const handleSetLastPayday = (date: Date | undefined) => {
     if (date) {
-      setLastPayday(date);
+      handleUpdate({ lastPayday: date.toISOString() });
     }
   };
   
@@ -131,7 +121,7 @@ export function Dashboard() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    let nextPaydayDate = new Date(lastPayday);
+    let nextPaydayDate = parseISO(lastPayday);
     nextPaydayDate.setHours(0, 0, 0, 0);
     
     while (nextPaydayDate <= today) {
@@ -140,6 +130,10 @@ export function Dashboard() {
     
     return nextPaydayDate;
   }, [lastPayday]);
+
+  if (loading) {
+     return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -199,13 +193,13 @@ export function Dashboard() {
                                 )}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                {lastPayday ? format(lastPayday, "PPP") : <span>Pick a date</span>}
+                                {lastPayday ? format(parseISO(lastPayday), "PPP") : <span>Pick a date</span>}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                                 mode="single"
-                                selected={lastPayday}
+                                selected={lastPayday ? parseISO(lastPayday) : undefined}
                                 onSelect={handleSetLastPayday}
                                 disabled={(date) => date > new Date() || date < new Date("2000-01-01")}
                                 weekStartsOn={1}

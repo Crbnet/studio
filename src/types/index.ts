@@ -13,3 +13,11 @@ export interface Shift {
   inCharge?: boolean;
   storeId?: string;
 }
+
+export interface UserData {
+    email: string;
+    payRate: number;
+    lastPayday: string | null; // Stored as ISO string
+    stores: Store[];
+    shifts: Shift[];
+}
