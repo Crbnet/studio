@@ -83,7 +83,7 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
         inCharge: data.inCharge,
         storeId: data.storeId || undefined
     });
-    form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0, inCharge: false, storeId: '' });
+    form.reset({ ...form.getValues(), startTime: '', endTime: '', breakDuration: 0, inCharge: false, storeId: undefined });
   }
 
   const getCalendarDisabledDays = (date: Date) => {
@@ -220,14 +220,13 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
                     <div className="flex items-center gap-2">
                       <div className="relative flex-grow">
                          <StoreIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-                        <Select onValueChange={field.onChange} value={field.value || ''}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger className="w-full pl-8">
                                 <SelectValue placeholder="Select a store" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">- No Store -</SelectItem>
                             {stores.map(store => (
                               <SelectItem key={store.id} value={store.id}>
                                 {store.name} ({store.number})
@@ -294,5 +293,3 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, onAddStore, 
     </Card>
   );
 }
-
-    
