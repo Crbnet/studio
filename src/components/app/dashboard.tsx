@@ -12,11 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, CalendarDays, PoundSterling, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfWeek, endOfWeek, addDays, subDays, isWithinInterval, parseISO, getDay, startOfDay, subWeeks, addWeeks, isAfter, isBefore } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, subDays, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useUserData } from '@/hooks/use-user-data';
 import { useToast } from '@/hooks/use-toast';
-import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -154,9 +154,13 @@ function ShiftManager({
       setIsLoadingShifts(true);
       try {
         const shiftsRef = collection(db, `users/${user.uid}/shifts`);
+        
+        const startString = format(weekStart, 'yyyy-MM-dd');
+        const endString = format(weekEnd, 'yyyy-MM-dd');
+
         const q = query(shiftsRef, 
-          where("date", ">=", format(weekStart, 'yyyy-MM-dd')),
-          where("date", "<=", format(weekEnd, 'yyyy-MM-dd'))
+          where("date", ">=", startString),
+          where("date", "<=", endString)
         );
         
         const snapshot = await getDocs(q);
@@ -178,12 +182,9 @@ function ShiftManager({
 
   const handleAddShift = (newShift: Omit<Shift, 'id'>) => {
     const shiftWithId = { ...newShift, id: crypto.randomUUID() };
-    const shiftDate = parseISO(shiftWithId.date);
-
-    if (isWithinInterval(shiftDate, { start: weekStart, end: weekEnd })) {
-      setShiftsForWeek(prev => [...prev, shiftWithId].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
-    }
-    onUpdate({}, [shiftWithId]);
+    onUpdate({}, [shiftWithId]); // Trigger the save
+    // Optimistically add to the current view
+    setShiftsForWeek(prev => [...prev, shiftWithId].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
   };
 
   const handleDeleteShift = (id: string) => {
@@ -247,7 +248,7 @@ function ShiftManager({
        <div className="lg:col-span-1 space-y-6">
           <ShiftForm
             onAddShift={handleAddShift}
-            isLocked={false}
+            isLocked={false} // Always unlocked
             viewDate={viewDate}
             stores={stores}
             homeStoreId={homeStoreId || undefined}
@@ -265,7 +266,7 @@ function ShiftManager({
             payRate={payRate} 
             onDeleteShift={handleDeleteShift} 
             grossPay={grossPayForWeek} 
-            isLocked={false} 
+            isLocked={false} // Always unlocked
           />
         </div>
     </div>

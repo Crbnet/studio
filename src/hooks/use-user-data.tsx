@@ -74,21 +74,14 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
     if (!user) {
       throw new Error("No user is signed in to update data.");
     }
-
-    const hasDataUpdates = Object.keys(data).length > 0;
-    const hasShiftUpdates = newShifts.length > 0 || deletedShiftIds.length > 0;
-    
-    if (!hasDataUpdates && !hasShiftUpdates) {
-        return; // Nothing to update
-    }
     
     try {
         const batch = writeBatch(db);
         const userDocRef = doc(db, "users", user.uid);
 
-        if (hasDataUpdates) {
-            batch.set(userDocRef, data, { merge: true });
-        }
+        // Always merge the latest data from the state with any new incoming changes
+        const dataToUpdate = { ...userData, ...data };
+        batch.set(userDocRef, dataToUpdate, { merge: true });
         
         newShifts.forEach(shift => {
           const shiftDocRef = doc(db, `users/${user.uid}/shifts`, shift.id);
@@ -112,7 +105,7 @@ export const UserDataProvider = ({ children }: { children: ReactNode }) => {
         throw error;
     }
 
-  }, [user, toast]);
+  }, [user, userData, toast]);
 
   return (
     <UserDataContext.Provider value={{ userData, loading, updateUserData }}>
