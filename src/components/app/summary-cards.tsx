@@ -3,24 +3,25 @@
 import { useMemo } from 'react';
 import type { Shift, Store } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PoundSterling, Clock, TrendingUp, BarChart, Fuel } from 'lucide-react';
+import { PoundSterling, Clock, TrendingUp, BarChart, Fuel, CalendarRange } from 'lucide-react';
 
 interface SummaryCardsProps {
-  shifts: Shift[];
+  shiftsForWeek: Shift[];
   payRate: number;
   stores: Store[];
+  payCycleTotalPay: number;
 }
 
 const IN_CHARGE_BONUS = 0.25;
 const FUEL_RATE_PER_MILE = 0.30;
 
-export function SummaryCards({ shifts, payRate, stores }: SummaryCardsProps) {
-    const { totalHours, grossPay, totalFuel, totalPay } = useMemo(() => {
+export function SummaryCards({ shiftsForWeek, payRate, stores, payCycleTotalPay }: SummaryCardsProps) {
+    const { totalHours, grossPay, totalFuel } = useMemo(() => {
         let totalHours = 0;
         let grossPay = 0;
         let totalFuel = 0;
 
-        shifts.forEach(shift => {
+        shiftsForWeek.forEach(shift => {
             const start = new Date(`${shift.date}T${shift.startTime}`);
             const end = new Date(`${shift.date}T${shift.endTime}`);
             let durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
@@ -40,16 +41,14 @@ export function SummaryCards({ shifts, payRate, stores }: SummaryCardsProps) {
             }
         });
         
-        return { totalHours, grossPay, totalFuel, totalPay: grossPay + totalFuel };
-    }, [shifts, payRate, stores]);
-
-    const avgPayPerShift = shifts.length > 0 ? totalPay / shifts.length : 0;
+        return { totalHours, grossPay, totalFuel };
+    }, [shiftsForWeek, payRate, stores]);
 
   const summaryData = [
-    { title: 'Weekly Hours', value: totalHours.toFixed(2), icon: Clock, change: 'h' },
-    { title: 'Weekly Gross Pay', value: `£${grossPay.toFixed(2)}`, icon: PoundSterling, change: '' },
-    { title: 'Fuel Claim', value: `£${totalFuel.toFixed(2)}`, icon: Fuel, change: '' },
-    { title: 'Total Pay', value: `£${totalPay.toFixed(2)}`, icon: TrendingUp, change: '' },
+    { title: 'Weekly Hours', value: totalHours.toFixed(2), icon: Clock, description: 'For the selected week' },
+    { title: 'Weekly Gross Pay', value: `£${grossPay.toFixed(2)}`, icon: PoundSterling, description: 'For the selected week' },
+    { title: 'Weekly Fuel Claim', value: `£${totalFuel.toFixed(2)}`, icon: Fuel, description: 'For the selected week' },
+    { title: 'Pay Cycle Total', value: `£${payCycleTotalPay.toFixed(2)}`, icon: CalendarRange, description: 'Running total for this pay period' },
   ];
   
   return (
@@ -62,7 +61,7 @@ export function SummaryCards({ shifts, payRate, stores }: SummaryCardsProps) {
         </CardHeader>
         <CardContent>
             <div className="text-2xl font-bold font-headline">{item.value}</div>
-            <p className="text-xs text-muted-foreground">For the selected week</p>
+            <p className="text-xs text-muted-foreground">{item.description}</p>
         </CardContent>
         </Card>
     ))}

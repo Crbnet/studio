@@ -43,7 +43,6 @@ type ShiftFormValues = z.infer<typeof shiftFormSchema>;
 
 interface ShiftFormProps {
   onAddShift: (shift: Omit<Shift, 'id'>) => void;
-  isLocked?: boolean;
   viewDate: Date;
   stores: Store[];
   homeStoreId?: string;
@@ -52,7 +51,7 @@ interface ShiftFormProps {
   onSetHomeStore: (id: string) => void;
 }
 
-export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId, onAddStore, onDeleteStore, onSetHomeStore }: ShiftFormProps) {
+export function ShiftForm({ onAddShift, viewDate, stores, homeStoreId, onAddStore, onDeleteStore, onSetHomeStore }: ShiftFormProps) {
   const [isStoreManagerOpen, setIsStoreManagerOpen] = useState(false);
   const form = useForm<ShiftFormValues>({
     resolver: zodResolver(shiftFormSchema),
@@ -117,7 +116,7 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
         <CardDesc>Enter the details for your work shift.</CardDesc>
       </CardHeader>
       <CardContent>
-        <fieldset disabled={isLocked} className="space-y-6">
+        <div className="space-y-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <div className="space-y-6">
@@ -298,7 +297,7 @@ export function ShiftForm({ onAddShift, isLocked, viewDate, stores, homeStoreId,
             </div>
           </form>
         </Form>
-        </fieldset>
+        </div>
       </CardContent>
     </Card>
   );

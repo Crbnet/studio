@@ -25,13 +25,12 @@ interface ShiftsTableProps {
   payRate: number;
   onDeleteShift: (id: string) => void;
   grossPay: number;
-  isLocked?: boolean;
 }
 
 const IN_CHARGE_BONUS = 0.25;
 const FUEL_RATE_PER_MILE = 0.30;
 
-export function ShiftsTable({ shifts, isLoading, stores, payRate, onDeleteShift, grossPay, isLocked }: ShiftsTableProps) {
+export function ShiftsTable({ shifts, isLoading, stores, payRate, onDeleteShift, grossPay }: ShiftsTableProps) {
   
   const getStore = (storeId?: string) => stores.find(s => s.id === storeId);
   
@@ -141,7 +140,7 @@ export function ShiftsTable({ shifts, isLoading, stores, payRate, onDeleteShift,
                       </TableCell>
                       <TableCell>£{totalPay.toFixed(2)}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => onDeleteShift(shift.id)} disabled={isLocked}>
+                        <Button variant="ghost" size="icon" onClick={() => onDeleteShift(shift.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </TableCell>
